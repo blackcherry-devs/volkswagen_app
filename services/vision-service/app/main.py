@@ -92,14 +92,65 @@ async def process_card(
                 "all_checkboxes": motivos_results
             }
 
+        # 5. Inferencia opcional con Ollama GLM-OCR si está disponible
+        ollama_data = call_ollama_glm_ocr(warped_b64, card_type)
+
         return {
             "success": True,
             "card_type": card_type,
             "dimensions": {"width": 600, "height": 1200},
             "warped_image": f"data:image/jpeg;base64,{warped_b64}",
             "checkboxes": checkbox_results,
-            "motivos_desmontaje": motivos_detected
+            "motivos_desmontaje": motivos_detected,
+            "ollama_ocr": ollama_data
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+def call_ollama_glm_ocr(image_b64: str, card_type: str, ollama_url: str = "http://127.0.0.1:11434"):
+    """
+    Llama a la API local de Ollama para ejecutar el modelo GLM-OCR
+    sobre la imagen normalizada del cartoncillo.
+    """
+    import urllib.request
+    import json
+
+    prompt = (
+        f"Text Recognition: Extract all printed and handwritten text from this Volkswagen HSK 63 "
+        f"{card_type.upper()} tool control card into a valid JSON object with keys: "
+        f"centroCostos, operacion, numeroHerramienta, maquina, husillo, tiempoVidaUtil, fecha, turno, nombre, "
+        f"{'motivoDesmontaje, ' if card_type == 'naranja' else ''}observaciones."
+    )
+
+    req_data = {
+        "model": "glm-ocr",
+        "prompt": prompt,
+        "images": [image_b64],
+        "stream": False,
+        "options": {
+            "temperature": 0.1
+        }
+    }
+
+    try:
+        req = urllib.request.Request(
+            f"{ollama_url}/api/generate",
+            data=json.dumps(req_data).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=45) as resp:
+            if resp.status == 200:
+                result = json.loads(resp.read().decode("utf-8"))
+                return {
+                    "available": True,
+                    "model": "glm-ocr",
+                    "raw_response": result.get("response", "")
+                }
+    except Exception as ex:
+        return {
+            "available": False,
+            "error": str(ex),
+            "hint": "Inicia Ollama con 'ollama run glm-ocr' para habilitar OCR local"
+        }

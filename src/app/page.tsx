@@ -34,13 +34,19 @@ import {
   SAMPLE_GREEN_DATA,
   SAMPLE_UNIFIED_DATA,
   generateMockCardSvg,
-  simulateExtractionPipeline,
 } from '@/lib/mockData';
 import { compareSharedFields } from '@/lib/validation';
+import { checkOllamaStatus, runOcrRecognition, OllamaStatus } from '@/lib/ocrService';
+import { Terminal, Cpu, HelpCircle, X } from 'lucide-react';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'capture' | 'excel' | 'print' | 'calibrate'>('capture');
   const [selectedCardType, setSelectedCardType] = useState<CardType>('naranja');
+
+  // Estado de Ollama GLM-OCR
+  const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus | null>(null);
+  const [isCheckingOllama, setIsCheckingOllama] = useState<boolean>(false);
+  const [showOllamaModal, setShowOllamaModal] = useState<boolean>(false);
 
   // Estados de escaneo dual (ambas tarjetas)
   const [orangeScan, setOrangeScan] = useState<{
@@ -121,18 +127,44 @@ export default function Home() {
 
     setFormData(SAMPLE_UNIFIED_DATA);
     setSharedMismatches({});
+
+    // Comprobar estado de Ollama GLM-OCR al iniciar
+    refreshOllamaStatus();
   }, []);
 
-  // Función para procesar y cotejar cuando una tarjeta es escaneada o subida
+  const refreshOllamaStatus = async () => {
+    setIsCheckingOllama(true);
+    try {
+      const status = await checkOllamaStatus();
+      setOllamaStatus(status);
+    } catch (err) {
+      console.error('Error al comprobar Ollama:', err);
+    } finally {
+      setIsCheckingOllama(false);
+    }
+  };
+
+  // Función para procesar y cotejar cuando una tarjeta es escaneada o subida con Ollama GLM-OCR
   const handleImageSelected = async (imageUri: string, autoTriggerExtract = true) => {
     if (autoTriggerExtract) {
       setIsProcessing(true);
       try {
-        const result = await simulateExtractionPipeline(
+        const { result, isRealOllama, statusMessage } = await runOcrRecognition(
           selectedCardType,
           imageUri,
-          (step) => setProcessingStep(step)
+          {
+            onProgress: (step) => setProcessingStep(step),
+          }
         );
+
+        if (isRealOllama) {
+          showNotification(
+            '¡Reconocimiento completado con Ollama GLM-OCR local!',
+            'success'
+          );
+        } else if (statusMessage) {
+          showNotification(statusMessage, 'info');
+        }
 
         if (selectedCardType === 'naranja') {
           const orangeExtracted = result.data as OrangeCardData;
@@ -158,7 +190,7 @@ export default function Home() {
             runCrossValidation(orangeExtracted, greenScan.data);
           } else {
             showNotification(
-              'Tarjeta Naranja escaneada. Escanea ahora la Tarjeta Verde para cotejar los 5 campos compartidos.',
+              'Tarjeta Naranja procesada. Escanea ahora la Tarjeta Verde para cotejar los 5 campos compartidos.',
               'info'
             );
           }
@@ -186,13 +218,14 @@ export default function Home() {
             runCrossValidation(orangeScan.data, greenExtracted);
           } else {
             showNotification(
-              'Tarjeta Verde escaneada. Escanea ahora la Tarjeta Naranja para cotejar los 5 campos compartidos.',
+              'Tarjeta Verde procesada. Escanea ahora la Tarjeta Naranja para cotejar los 5 campos compartidos.',
               'info'
             );
           }
         }
       } catch (err) {
         console.error('Error durante la extracción:', err);
+        showNotification('Error al procesar la imagen con OCR.', 'error');
       } finally {
         setIsProcessing(false);
         setProcessingStep('');
@@ -375,6 +408,37 @@ export default function Home() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Estado e indicador interactivo de Ollama GLM-OCR */}
+            <button
+              onClick={() => setShowOllamaModal(true)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 border shadow-sm ${
+                ollamaStatus?.online && ollamaStatus?.modelAvailable
+                  ? 'bg-emerald-950/60 text-emerald-300 border-emerald-700/80 hover:bg-emerald-900/60'
+                  : ollamaStatus?.online
+                  ? 'bg-amber-950/60 text-amber-300 border-amber-700/80 hover:bg-amber-900/60'
+                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-slate-500'
+              }`}
+              title="Clic para ver configuración y estado de Ollama GLM-OCR"
+            >
+              <Cpu className="w-3.5 h-3.5" />
+              <span>
+                {ollamaStatus?.online && ollamaStatus?.modelAvailable
+                  ? 'Ollama GLM-OCR: Conectado'
+                  : ollamaStatus?.online
+                  ? 'Ollama: Falta modelo glm-ocr'
+                  : 'Ollama: Local'}
+              </span>
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  ollamaStatus?.online && ollamaStatus?.modelAvailable
+                    ? 'bg-emerald-400 animate-pulse'
+                    : ollamaStatus?.online
+                    ? 'bg-amber-400'
+                    : 'bg-slate-500'
+                }`}
+              />
+            </button>
+
             {/* Botón para probar discrepancia / desajuste */}
             <button
               onClick={handleSimulateMismatchTest}
@@ -533,6 +597,121 @@ export default function Home() {
         {/* PESTAÑA 4: CALIBRADOR VISUAL */}
         {activeTab === 'calibrate' && (
           <CoordinateCalibrator />
+        )}
+
+        {/* MODAL DE CONFIGURACIÓN Y ESTADO DE OLLAMA GLM-OCR */}
+        {showOllamaModal && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 relative">
+              <button
+                onClick={() => setShowOllamaModal(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
+                  <Cpu className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    Configuración de Ollama (GLM-OCR)
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Reconocimiento de texto impreso y manuscrito 100% en local sin enviar datos a la nube
+                  </p>
+                </div>
+              </div>
+
+              {/* Tarjeta de Estado Actual */}
+              <div className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-300">Servidor Ollama Local:</span>
+                  <span
+                    className={`text-xs font-mono font-bold px-2 py-0.5 rounded flex items-center space-x-1 ${
+                      ollamaStatus?.online
+                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                        : 'bg-red-950 text-red-400 border border-red-800'
+                    }`}
+                  >
+                    <span>{ollamaStatus?.online ? 'En Línea (127.0.0.1:11434)' : 'No Detectado'}</span>
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-300">Modelo GLM-OCR:</span>
+                  <span
+                    className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
+                      ollamaStatus?.modelAvailable
+                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                        : 'bg-amber-950 text-amber-400 border border-amber-800'
+                    }`}
+                  >
+                    {ollamaStatus?.modelAvailable ? 'Instalado ✓' : 'Falta descargar'}
+                  </span>
+                </div>
+
+                {ollamaStatus?.models && ollamaStatus.models.length > 0 && (
+                  <div className="pt-1 text-[11px] text-slate-400">
+                    <span>Modelos detectados en tu máquina: </span>
+                    <span className="font-mono text-slate-300">{ollamaStatus.models.join(', ')}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Guía Rápida de Instalación en Mac */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center space-x-1.5">
+                  <Terminal className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Pasos para Activar GLM-OCR en tu Terminal:</span>
+                </h4>
+
+                <div className="space-y-2 text-xs font-mono">
+                  <div className="p-2.5 bg-black/60 rounded-lg border border-slate-800">
+                    <p className="text-[11px] text-slate-400 font-sans mb-1">
+                      1. Instalar Ollama (si no lo tienes instalado):
+                    </p>
+                    <code className="text-emerald-400 selection:bg-emerald-800">
+                      curl -fsSL https://ollama.com/install.sh | sh
+                    </code>
+                    <p className="text-[10px] text-slate-500 font-sans mt-0.5">
+                      O descarga la app desde: <a href="https://ollama.com/download" target="_blank" rel="noreferrer" className="text-blue-400 underline">ollama.com/download</a>
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 bg-black/60 rounded-lg border border-slate-800">
+                    <p className="text-[11px] text-slate-400 font-sans mb-1">
+                      2. Descargar y ejecutar el modelo GLM-OCR (0.9B params, ~2.2 GB):
+                    </p>
+                    <code className="text-amber-300 selection:bg-amber-800">
+                      ollama run glm-ocr
+                    </code>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={refreshOllamaStatus}
+                  disabled={isCheckingOllama}
+                  className="flex items-center space-x-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isCheckingOllama ? 'animate-spin' : ''}`} />
+                  <span>{isCheckingOllama ? 'Comprobando...' : 'Reintentar Conexión'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowOllamaModal(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition"
+                >
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </main>
 
