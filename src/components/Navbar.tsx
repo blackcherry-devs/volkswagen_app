@@ -55,8 +55,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* 2. Selector de Cartoncillo (Píldora Moderna) */}
-          <div className="flex items-center bg-slate-900/90 p-1 sm:p-1.5 rounded-2xl border border-slate-800/90 shadow-inner">
+          {/* 2. Selector de Cartoncillo a Escanear */}
+          <div className="flex items-center space-x-1.5 bg-slate-900/90 p-1 sm:p-1.5 rounded-2xl border border-slate-800/90 shadow-inner">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1.5 hidden sm:inline">
+              Escanear:
+            </span>
             <button
               onClick={() => setSelectedCardType('naranja')}
               className={`flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all ${
@@ -80,7 +83,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <span className={`w-2 h-2 rounded-full ${selectedCardType === 'verde' ? 'bg-white' : 'bg-emerald-500'}`} />
               <span>Verde</span>
-              <span className="text-[9.5px] opacity-75 font-mono hidden sm:inline">(Seguimiento)</span>
+              <span className="text-[9.5px] opacity-75 font-mono hidden sm:inline">(Inicial)</span>
             </button>
           </div>
 
@@ -107,7 +110,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-300" />
-              <span>Libro Excel</span>
+              <span>RUPTURAS TOTAL</span>
               {savedCount > 0 && (
                 <span className="bg-emerald-400 text-slate-950 font-black text-[10px] px-1.5 py-0.2 rounded-full shadow-sm">
                   {savedCount}
