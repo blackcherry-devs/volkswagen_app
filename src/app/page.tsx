@@ -178,9 +178,9 @@ export default function Home() {
       )}
 
       {/* Contenido Principal */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Banner Informativo del Flujo de Trabajo */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-6 lg:px-8 py-2.5 sm:py-6 space-y-3 sm:space-y-6">
+        {/* Banner Informativo del Flujo de Trabajo (Visible en pantallas medianas y grandes) */}
+        <div className="hidden sm:flex bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl flex-wrap items-center justify-between gap-4">
           <div className="flex items-center space-x-3.5">
             <div className="w-11 h-11 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
               <Zap className="w-6 h-6" />
