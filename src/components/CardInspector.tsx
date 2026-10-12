@@ -11,6 +11,9 @@ interface CardInspectorProps {
   activeFieldKey: string | null;
   onSelectField: (fieldKey: string) => void;
   confidences?: Record<string, number>;
+  onSelectCardType?: (type: CardType) => void;
+  hasOrangeImage?: boolean;
+  hasGreenImage?: boolean;
 }
 
 export const CardInspector: React.FC<CardInspectorProps> = ({
@@ -19,6 +22,9 @@ export const CardInspector: React.FC<CardInspectorProps> = ({
   activeFieldKey,
   onSelectField,
   confidences = {},
+  onSelectCardType,
+  hasOrangeImage,
+  hasGreenImage,
 }) => {
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const template: CardTemplate = getTemplate(cardType);
@@ -30,15 +36,40 @@ export const CardInspector: React.FC<CardInspectorProps> = ({
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col h-full">
       {/* Barra de Herramientas del Visor */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800 mb-3">
         <div className="flex items-center space-x-2">
           <Crosshair className="w-4 h-4 text-blue-400" />
           <span className="text-xs font-bold text-white uppercase tracking-wider">
-            Visor de Imagen & Regiones (OpenCV)
+            Visor OpenCV
           </span>
-          <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">
-            Plantilla: {template.id}
-          </span>
+          {onSelectCardType && (
+            <div className="flex bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[10px]">
+              <button
+                type="button"
+                onClick={() => onSelectCardType('naranja')}
+                className={`px-2 py-0.5 rounded font-bold transition flex items-center space-x-1 ${
+                  cardType === 'naranja'
+                    ? 'bg-orange-500 text-white shadow'
+                    : 'text-slate-400 hover:text-orange-300'
+                }`}
+              >
+                <span>Naranja</span>
+                {hasOrangeImage && <span className="text-[9px]">✓</span>}
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectCardType('verde')}
+                className={`px-2 py-0.5 rounded font-bold transition flex items-center space-x-1 ${
+                  cardType === 'verde'
+                    ? 'bg-emerald-600 text-white shadow'
+                    : 'text-slate-400 hover:text-emerald-300'
+                }`}
+              >
+                <span>Verde</span>
+                {hasGreenImage && <span className="text-[9px]">✓</span>}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center space-x-1.5">

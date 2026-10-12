@@ -73,7 +73,42 @@ export interface GreenCardData {
   nombre: string;
 }
 
-export type AnyCardData = OrangeCardData | GreenCardData;
+export const SHARED_FIELD_KEYS = [
+  'centroCostos',
+  'operacion',
+  'numeroHerramienta',
+  'maquina',
+  'husillo',
+] as const;
+
+export type SharedFieldKey = (typeof SHARED_FIELD_KEYS)[number];
+
+// Modelo unificado de datos (RUPTURAS TOTAL - Ambas tarjetas requeridas)
+export interface UnifiedRupturaData {
+  // 5 Campos Compartidos (Cotejados y validados entre ambas tarjetas)
+  centroCostos: string;       // 4 dígitos iniciando con 4 (ej. 4120)
+  operacion: string;          // Ej. OP-20 FRESADO CARA
+  numeroHerramienta: string;  // Inicia con T + números (ej. T-10452)
+  maquina: string;            // 1 al 10
+  husillo: string;            // 1 al 4
+
+  // Campos Únicos de Tarjeta Verde (Inicial)
+  fechaInicial: string;
+  turnoInicial: string;
+  nombreOperadorInicial: string;
+  tiempoVidaUtilInicial?: string;
+  observacionesInicial?: string;
+
+  // Campos Únicos de Tarjeta Naranja (Desmontaje)
+  fechaDesmontaje: string;
+  turnoDesmontaje: string;
+  nombreOperadorDesmontaje: string;
+  tiempoVidaUtilDesmontaje: string;
+  motivoDesmontaje: string;
+  observacionesDesmontaje?: string;
+}
+
+export type AnyCardData = OrangeCardData | GreenCardData | UnifiedRupturaData;
 
 export interface ExtractionResult<T = AnyCardData> {
   cardType: CardType;
@@ -81,18 +116,18 @@ export interface ExtractionResult<T = AnyCardData> {
   imageUrl: string;
   normalizedImageUrl?: string;
   data: T;
-  confidences: Record<keyof T, number>; // 0 to 100 percentage
-  fieldFlags: Record<keyof T, string | null>; // Warnings or notes
+  confidences: Record<string, number>;
+  fieldFlags: Record<string, string | null>;
   overallConfidence: number;
 }
 
 export interface SavedRecord {
   id: string;
-  cardType: CardType;
   capturedAt: string;
   verifiedAt: string;
-  data: AnyCardData;
-  imageUrl: string;
+  naranjaImageUrl?: string;
+  verdeImageUrl?: string;
   syncStatus: 'synced_excel' | 'pending_sync' | 'error';
   excelRowNumber?: number;
+  data: UnifiedRupturaData;
 }

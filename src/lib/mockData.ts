@@ -1,4 +1,4 @@
-import { CardType, OrangeCardData, GreenCardData, ExtractionResult, MOTIVOS_DESMONTAJE } from '@/types/card';
+import { CardType, OrangeCardData, GreenCardData, UnifiedRupturaData, ExtractionResult, MOTIVOS_DESMONTAJE } from '@/types/card';
 
 // Muestras predefinidas realistas
 export const SAMPLE_ORANGE_DATA: OrangeCardData = {
@@ -16,16 +16,36 @@ export const SAMPLE_ORANGE_DATA: OrangeCardData = {
 };
 
 export const SAMPLE_GREEN_DATA: GreenCardData = {
-  centroCostos: '4380',
-  operacion: 'OP-45 BARRENADO GUIA',
-  numeroHerramienta: 'T-8521',
-  maquina: '7',
-  husillo: '1',
+  centroCostos: '4120',
+  operacion: 'OP-20 FRESADO CARA',
+  numeroHerramienta: 'T-10452',
+  maquina: '3',
+  husillo: '2',
   tiempoVidaUtil: '2800',
   observaciones: 'Herramienta liberada para maquinado en serie, inspección OK.',
-  fecha: '2026-10-09',
+  fecha: '2026-10-01',
   nombre: 'Martín Silva Gómez',
   turno: '2',
+};
+
+// Muestra predefinida unificada (RUPTURAS TOTAL)
+export const SAMPLE_UNIFIED_DATA: UnifiedRupturaData = {
+  centroCostos: '4120',
+  operacion: 'OP-20 FRESADO CARA',
+  numeroHerramienta: 'T-10452',
+  maquina: '3',
+  husillo: '2',
+  fechaInicial: '2026-10-01',
+  turnoInicial: '2',
+  nombreOperadorInicial: 'Martín Silva Gómez',
+  tiempoVidaUtilInicial: '2800',
+  observacionesInicial: 'Herramienta liberada para maquinado en serie, inspección OK.',
+  fechaDesmontaje: '2026-10-09',
+  turnoDesmontaje: '1',
+  nombreOperadorDesmontaje: 'Carlos E. Mendoza',
+  tiempoVidaUtilDesmontaje: '1450',
+  motivoDesmontaje: 'Rotura',
+  observacionesDesmontaje: 'Desgaste severo en filo principal tras 1450 ciclos de fresado.',
 };
 
 // Generador de SVG que simula fielmente la tarjeta colgante HSK 63 de Volkswagen de México
