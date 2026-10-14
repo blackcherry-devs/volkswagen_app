@@ -102,16 +102,17 @@ export const CardInspector: React.FC<CardInspectorProps> = ({
 
       {/* Contenedor del Cartón con Zoom y Capa de Bounding Boxes */}
       <div className="relative flex-1 bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center p-2 min-h-[360px]">
-        <div
-          className="relative inline-block transition-transform duration-200 select-none max-w-full"
-          style={{ transform: `scale(${zoomLevel})` }}
-        >
-          {/* Imagen física del cartón */}
-          <img
-            src={imageUrl}
-            alt="Cartón Físico Escaneado"
-            className="w-auto max-w-[340px] md:max-w-[380px] max-h-[640px] h-auto rounded-lg shadow-2xl pointer-events-none block"
-          />
+        {imageUrl ? (
+          <div
+            className="relative inline-block transition-transform duration-200 select-none max-w-full"
+            style={{ transform: `scale(${zoomLevel})` }}
+          >
+            {/* Imagen física del cartón */}
+            <img
+              src={imageUrl}
+              alt="Cartón Físico Escaneado"
+              className="w-auto max-w-[340px] md:max-w-[380px] max-h-[640px] h-auto rounded-lg shadow-2xl pointer-events-none block"
+            />
 
           {/* Capa de Marcadores de Esquina Detectados por OpenCV */}
           <div className="absolute inset-0 pointer-events-none">
@@ -195,6 +196,19 @@ export const CardInspector: React.FC<CardInspectorProps> = ({
             })}
           </div>
         </div>
+      ) : (
+          <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 space-y-3">
+            <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-600">
+              <Crosshair className="w-8 h-8" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-400">Sin imagen escaneada todavía</p>
+              <p className="text-[11px] text-slate-600 mt-0.5">
+                Usa la cámara o sube una fotografía de la Tarjeta {cardType === 'naranja' ? 'Naranja' : 'Verde'}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Pie con Estado de Reconocimiento */}

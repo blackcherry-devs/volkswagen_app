@@ -29,6 +29,7 @@ import {
   MOTIVOS_DESMONTAJE,
   SharedFieldKey,
   SHARED_FIELD_KEYS,
+  getLineaFromCentroCostos,
 } from '@/types/card';
 import { UnifiedRupturaSchema, suggestCorrections } from '@/lib/validation';
 
@@ -252,6 +253,17 @@ export const VerificationForm: React.FC<VerificationFormProps> = ({
               4,
               'Ej: 4120',
               bothCardsScanned
+            )}
+
+            {/* Badge de Línea de Producción auto-resuelta desde el CC */}
+            {formData.centroCostos && /^4\d{3}$/.test(formData.centroCostos) && (
+              <div className="sm:col-span-2 flex items-center space-x-2 px-3 py-2 bg-amber-950/30 border border-amber-700/60 rounded-xl">
+                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Línea detectada:</span>
+                <span className="text-xs font-black text-amber-200 px-2 py-0.5 bg-amber-500/20 rounded border border-amber-500/30">
+                  {getLineaFromCentroCostos(formData.centroCostos)}
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">CC: {formData.centroCostos}</span>
+              </div>
             )}
 
             {/* 2. Operación */}
@@ -734,7 +746,7 @@ export const VerificationForm: React.FC<VerificationFormProps> = ({
             </div>
           </div>
 
-          {/* Motivo de desmontaje (tarjeta naranja) con 12 casillas */}
+          {/* Motivo de desmontaje (tarjeta naranja) - Selector único */}
           <div
             className={`p-3.5 rounded-xl border transition-all ${
               activeFieldKey === 'motivoDesmontaje'
@@ -752,69 +764,32 @@ export const VerificationForm: React.FC<VerificationFormProps> = ({
               </span>
             </div>
 
-            {/* Selector de opciones oficiales de planta */}
-            <div className="mb-2">
-              <div className="relative">
-                <select
-                  value={
-                    MOTIVOS_DESMONTAJE.includes(formData.motivoDesmontaje as any)
-                      ? formData.motivoDesmontaje
-                      : ''
-                  }
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      handleChange('motivoDesmontaje', e.target.value);
-                    }
-                  }}
-                  className="w-full bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-orange-500 font-semibold appearance-none pr-8 cursor-pointer"
-                >
-                  <option value="">-- Elige un motivo oficial o escribe abajo --</option>
-                  {MOTIVOS_DESMONTAJE.map((motivo) => (
-                    <option key={motivo} value={motivo}>
-                      {motivo}
+            {/* Selector único con las 12 opciones oficiales */}
+            <div className="relative">
+              <select
+                value={formData.motivoDesmontaje || ''}
+                onFocus={() => setActiveFieldKey('motivoDesmontaje')}
+                onChange={(e) => handleChange('motivoDesmontaje', e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2.5 rounded-lg focus:outline-none focus:border-orange-500 font-semibold appearance-none pr-8 cursor-pointer"
+              >
+                <option value="">-- Seleccionar motivo de desmontaje --</option>
+                {formData.motivoDesmontaje &&
+                  !MOTIVOS_DESMONTAJE.includes(formData.motivoDesmontaje as any) && (
+                    <option value={formData.motivoDesmontaje}>
+                      {formData.motivoDesmontaje} (Detectado)
                     </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
-              </div>
+                  )}
+                {MOTIVOS_DESMONTAJE.map((motivo) => (
+                  <option key={motivo} value={motivo}>
+                    {motivo}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-3 pointer-events-none" />
             </div>
 
-            {/* Chips rápidos de motivos más frecuentes */}
-            <div className="flex flex-wrap gap-1.5 mb-2.5">
-              {[
-                'Rotura',
-                'Despostilladura',
-                'Formación de rebaba',
-                'Fallo de máquina',
-                'Rugosidad alta',
-                'Diámetro grande',
-              ].map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  onClick={() => handleChange('motivoDesmontaje', chip)}
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition ${
-                    formData.motivoDesmontaje === chip
-                      ? 'bg-orange-500 text-white border-orange-400 shadow-sm'
-                      : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-orange-500/60'
-                  }`}
-                >
-                  {chip}
-                </button>
-              ))}
-            </div>
-
-            {/* Entrada editable directa */}
-            <input
-              type="text"
-              value={formData.motivoDesmontaje}
-              onFocus={() => setActiveFieldKey('motivoDesmontaje')}
-              onChange={(e) => handleChange('motivoDesmontaje', e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-orange-500 font-mono"
-              placeholder="Motivo de desmontaje detectado..."
-            />
             {validationErrors.motivoDesmontaje && (
-              <p className="text-[11px] text-red-400 mt-1">{validationErrors.motivoDesmontaje}</p>
+              <p className="text-[11px] text-red-400 mt-1.5">{validationErrors.motivoDesmontaje}</p>
             )}
           </div>
 
@@ -907,14 +882,21 @@ function renderSharedField(
       }`}
     >
       <div className="flex items-center justify-between mb-1.5">
-        <label
-          className={`text-xs font-bold flex items-center space-x-1 ${
-            isMismatch ? 'text-red-300' : 'text-slate-200'
-          }`}
-        >
-          {icon}
-          <span>{label}</span>
-        </label>
+        <div className="flex items-center space-x-2">
+          <label
+            className={`text-xs font-bold flex items-center space-x-1 ${
+              isMismatch ? 'text-red-300' : 'text-slate-200'
+            }`}
+          >
+            {icon}
+            <span>{label}</span>
+          </label>
+          {key === 'centroCostos' && value && (
+            <span className="text-[10px] font-bold text-amber-300 bg-amber-950/70 border border-amber-800/80 px-2 py-0.5 rounded font-mono">
+              Línea: {getLineaFromCentroCostos(value)}
+            </span>
+          )}
+        </div>
         {bothScanned && !isMismatch && value ? (
           <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/60">
             Coincide ✓

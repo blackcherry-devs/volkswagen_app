@@ -18,6 +18,27 @@ export const MOTIVOS_DESMONTAJE = [
 
 export type MotivoDesmontajeTipo = (typeof MOTIVOS_DESMONTAJE)[number];
 
+// Mapeo oficial de Centro de Costos (CC) a Línea de Producción
+export const CENTRO_COSTOS_LINEAS: Record<string, string> = {
+  '4002': 'ZKG EA888',
+  '4004': 'KW EA888',
+  '4005': 'PL EA888',
+  '4003': 'ZK EA888',
+  '4101': 'AVS EA888 NS',
+  '4102': 'AVS EA888 GW',
+  '4103': 'AVS EA888 PN',
+  '4201': 'ZKG EA211',
+  '4202': 'KW EA211',
+  '4204': 'PL EA211',
+  '4205': 'ZK EA211',
+};
+
+export function getLineaFromCentroCostos(centroCostos?: string): string {
+  if (!centroCostos) return '—';
+  const cleanCC = String(centroCostos).trim();
+  return CENTRO_COSTOS_LINEAS[cleanCC] || 'Sin Asignar';
+}
+
 export interface BoundingBox {
   id: string;
   label: string;
@@ -107,6 +128,26 @@ export interface UnifiedRupturaData {
   motivoDesmontaje: string;
   observacionesDesmontaje?: string;
 }
+
+// Estructura de formulario vacío para escaneo en limpio
+export const EMPTY_UNIFIED_DATA: UnifiedRupturaData = {
+  centroCostos: '',
+  operacion: '',
+  numeroHerramienta: '',
+  maquina: '',
+  husillo: '',
+  fechaInicial: '',
+  turnoInicial: '',
+  nombreOperadorInicial: '',
+  tiempoVidaUtilInicial: '',
+  observacionesInicial: '',
+  fechaDesmontaje: '',
+  turnoDesmontaje: '',
+  nombreOperadorDesmontaje: '',
+  tiempoVidaUtilDesmontaje: '',
+  motivoDesmontaje: '',
+  observacionesDesmontaje: '',
+};
 
 export type AnyCardData = OrangeCardData | GreenCardData | UnifiedRupturaData;
 

@@ -1,9 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const DEFAULT_OLLAMA_URL = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
-const DEFAULT_MODEL = process.env.OLLAMA_MODEL || 'glm-ocr';
+const DEFAULT_MODEL = process.env.OLLAMA_MODEL || 'llava';
 
-// GET: Healthcheck para verificar si Ollama está corriendo y si glm-ocr está descargado
+// Función auxiliar para resolver el modelo exacto disponible en Ollama
+async function resolveOllamaModel(ollamaUrl: string, requestedModel: string): Promise<string> {
+  try {
+    const res = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(2500) });
+    if (!res.ok) return requestedModel;
+    const data = await res.json();
+    const models: string[] = (data.models || []).map((m: any) => m.name || m.model || '');
+    
+    // Si el modelo pedido existe exactamente, usarlo
+    if (models.includes(requestedModel)) return requestedModel;
+
+    // Si pidieron llava o llava:7b, buscar cualquier variación de llava instalada
+    if (requestedModel.toLowerCase().includes('llava')) {
+      const match = models.find((m) => m.toLowerCase().includes('llava'));
+      if (match) return match;
+    }
+
+    return requestedModel;
+  } catch {
+    return requestedModel;
+  }
+}
+
+// GET: Healthcheck para verificar si Ollama está corriendo y si llava está descargado
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const ollamaUrl = searchParams.get('url') || DEFAULT_OLLAMA_URL;
@@ -26,15 +49,14 @@ export async function GET(req: NextRequest) {
 
     const data = await res.json();
     const models: string[] = (data.models || []).map((m: any) => m.name || m.model || '');
-    const modelAvailable = models.some(
-      (m) => m.includes('glm-ocr') || m.toLowerCase().includes('glm')
-    );
+    const detectedLlava = models.find((m) => m.toLowerCase().includes('llava'));
+    const modelAvailable = !!detectedLlava;
 
     return NextResponse.json({
       online: true,
       modelAvailable,
       models,
-      targetModel: DEFAULT_MODEL,
+      targetModel: detectedLlava || DEFAULT_MODEL,
       url: ollamaUrl,
     });
   } catch (error: any) {
@@ -47,7 +69,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST: Procesar imagen con Ollama GLM-OCR
+// POST: Procesar imagen con Ollama LLaVA (vision model)
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -60,13 +82,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Resolver el nombre exacto de modelo disponible en Ollama (ej. 'llava' vs 'llava:7b')
+    const activeModel = await resolveOllamaModel(ollamaUrl, model);
+
     // Limpiar el encabezado data:image/...;base64, si viene incluido
     const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
 
-    // Construir prompt especializado para GLM-OCR según el tipo de cartón
+    // Construir prompt especializado para LLaVA según el tipo de cartón
     const prompt = buildOcrPrompt(cardType || 'naranja');
 
-    console.log(`[Ollama GLM-OCR] Enviando solicitud a ${ollamaUrl}/api/generate con modelo ${model}...`);
+    console.log(`[Ollama LLaVA] Enviando solicitud a ${ollamaUrl}/api/generate con modelo ${activeModel}...`);
 
     // Llamada directa al endpoint nativo de visión de Ollama (/api/generate)
     const ollamaResponse = await fetch(`${ollamaUrl}/api/generate`, {
@@ -75,7 +100,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model,
+        model: activeModel,
         prompt,
         images: [cleanBase64],
         stream: false,
@@ -93,7 +118,7 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           error: `Error de Ollama (${ollamaResponse.status}): ${errText}`,
-          provider: 'ollama-glm-ocr',
+          provider: 'ollama-llava',
         },
         { status: 502 }
       );
@@ -110,7 +135,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      provider: 'ollama-glm-ocr',
+      provider: 'ollama-llava',
       model,
       data: extractedData,
       confidences,
@@ -118,19 +143,19 @@ export async function POST(req: NextRequest) {
       durationMs: result.total_duration ? Math.round(result.total_duration / 1e6) : undefined,
     });
   } catch (error: any) {
-    console.error('[Ollama GLM-OCR Error]:', error);
+    console.error('[Ollama LLaVA Error]:', error);
     return NextResponse.json(
       {
         success: false,
-        error: error?.message || 'Error interno al comunicarse con Ollama GLM-OCR',
-        provider: 'ollama-glm-ocr',
+        error: error?.message || 'Error interno al comunicarse con Ollama LLaVA',
+        provider: 'ollama-llava',
       },
       { status: 500 }
     );
   }
 }
 
-// Prompt para GLM-OCR adaptado a los cartoncillos HSK 63 de Volkswagen de México
+// Prompt para LLaVA (vision model) adaptado a los cartoncillos HSK 63 de Volkswagen de México
 function buildOcrPrompt(cardType: string): string {
   const isOrange = cardType === 'naranja';
 
@@ -179,17 +204,27 @@ Extract all data and return ONLY a valid JSON object with EXACTLY these keys:
 IMPORTANT: Return ONLY the JSON object. No explanations, no markdown codeblocks.`;
 }
 
-// Extrae el objeto JSON de la respuesta de texto de GLM-OCR
+// Extrae el objeto JSON de la respuesta de texto del modelo de visión
 function parseOcrResponse(rawText: string, cardType: string): any {
   let parsed: any = null;
 
-  // 1. Intentar buscar bloque JSON
-  const jsonMatch = rawText.match(/\{[\s\S]*?\}/);
+  // 1. Intentar extraer JSON de bloque markdown (```json ... ``` o ``` ... ```)
+  const mdMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const textToSearch = mdMatch ? mdMatch[1].trim() : rawText;
+
+  // 2. Buscar el bloque JSON completo con match greedy (de { hasta el último })
+  const jsonMatch = textToSearch.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     try {
       parsed = JSON.parse(jsonMatch[0]);
     } catch {
-      // JSON malformado, intentar limpieza básica
+      // JSON malformado, intentar limpieza básica quitando trailing commas
+      try {
+        const cleaned = jsonMatch[0].replace(/,\s*([}\]])/g, '$1');
+        parsed = JSON.parse(cleaned);
+      } catch {
+        // Ignorar, se usará regex fallback
+      }
     }
   }
 
@@ -254,7 +289,7 @@ function parseOcrResponse(rawText: string, cardType: string): any {
 
   if (cardType === 'naranja') {
     result.motivoDesmontaje = cleanStr(
-      parsed.motivoDesmontaje || parsed['motivo'] || parsed['motivo_desmontaje'] || 'Rotura'
+      parsed.motivoDesmontaje || parsed['motivo'] || parsed['motivo_desmontaje'] || ''
     );
   }
 

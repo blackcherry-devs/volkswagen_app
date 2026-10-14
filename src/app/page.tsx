@@ -28,6 +28,7 @@ import {
   GreenCardData,
   UnifiedRupturaData,
   SHARED_FIELD_KEYS,
+  EMPTY_UNIFIED_DATA,
 } from '@/types/card';
 import {
   SAMPLE_ORANGE_DATA,
@@ -37,7 +38,7 @@ import {
 } from '@/lib/mockData';
 import { compareSharedFields } from '@/lib/validation';
 import { checkOllamaStatus, runOcrRecognition, OllamaStatus } from '@/lib/ocrService';
-import { Terminal, Cpu, HelpCircle, X } from 'lucide-react';
+import { Terminal, Cpu, HelpCircle, X, RotateCcw } from 'lucide-react';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'capture' | 'excel' | 'print' | 'calibrate'>('capture');
@@ -48,7 +49,7 @@ export default function Home() {
   const [isCheckingOllama, setIsCheckingOllama] = useState<boolean>(false);
   const [showOllamaModal, setShowOllamaModal] = useState<boolean>(false);
 
-  // Estados de escaneo dual (ambas tarjetas)
+  // Estados de escaneo dual (ambas tarjetas) - Inician en null (Modo Real en Limpio)
   const [orangeScan, setOrangeScan] = useState<{
     imageUrl: string;
     data: OrangeCardData;
@@ -61,8 +62,8 @@ export default function Home() {
     confidences: Record<string, number>;
   } | null>(null);
 
-  // Formulario único
-  const [formData, setFormData] = useState<UnifiedRupturaData>(SAMPLE_UNIFIED_DATA);
+  // Formulario único - Inicia 100% en blanco
+  const [formData, setFormData] = useState<UnifiedRupturaData>(EMPTY_UNIFIED_DATA);
   const [sharedMismatches, setSharedMismatches] = useState<Record<string, boolean>>({});
 
   // Estados de procesamiento
@@ -72,63 +73,10 @@ export default function Home() {
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
 
   // Registros guardados en Excel (RUPTURAS TOTAL)
-  const [savedRecords, setSavedRecords] = useState<SavedRecord[]>([
-    {
-      id: 'VW-RUP-001',
-      capturedAt: '2026-10-09T08:15:00.000Z',
-      verifiedAt: '09/10/2026 08:16',
-      naranjaImageUrl: generateMockCardSvg('naranja', SAMPLE_ORANGE_DATA),
-      verdeImageUrl: generateMockCardSvg('verde', SAMPLE_GREEN_DATA),
-      syncStatus: 'synced_excel',
-      excelRowNumber: 1,
-      data: SAMPLE_UNIFIED_DATA,
-    },
-  ]);
+  const [savedRecords, setSavedRecords] = useState<SavedRecord[]>([]);
 
-  // Cargar cartones de muestra iniciales para que el usuario pueda interactuar de inmediato
+  // Comprobar estado de Ollama GLM-OCR al iniciar (formulario limpio por defecto)
   useEffect(() => {
-    const initialOrangeSvg = generateMockCardSvg('naranja', SAMPLE_ORANGE_DATA);
-    const initialGreenSvg = generateMockCardSvg('verde', SAMPLE_GREEN_DATA);
-
-    setOrangeScan({
-      imageUrl: initialOrangeSvg,
-      data: SAMPLE_ORANGE_DATA,
-      confidences: {
-        centroCostos: 98,
-        operacion: 92,
-        numeroHerramienta: 96,
-        maquina: 99,
-        husillo: 97,
-        tiempoVidaUtil: 94,
-        fecha: 99,
-        turno: 98,
-        nombre: 91,
-        motivoDesmontaje: 99,
-        observaciones: 93,
-      },
-    });
-
-    setGreenScan({
-      imageUrl: initialGreenSvg,
-      data: SAMPLE_GREEN_DATA,
-      confidences: {
-        centroCostos: 99,
-        operacion: 94,
-        numeroHerramienta: 97,
-        maquina: 98,
-        husillo: 96,
-        tiempoVidaUtil: 95,
-        observaciones: 92,
-        fecha: 99,
-        nombre: 92,
-        turno: 98,
-      },
-    });
-
-    setFormData(SAMPLE_UNIFIED_DATA);
-    setSharedMismatches({});
-
-    // Comprobar estado de Ollama GLM-OCR al iniciar
     refreshOllamaStatus();
   }, []);
 
@@ -159,7 +107,7 @@ export default function Home() {
 
         if (isRealOllama) {
           showNotification(
-            '¡Reconocimiento completado con Ollama GLM-OCR local!',
+            '¡Reconocimiento completado con Ollama LLaVA local!',
             'success'
           );
         } else if (statusMessage) {
@@ -174,9 +122,14 @@ export default function Home() {
             confidences: result.confidences as Record<string, number>,
           });
 
-          // Actualizar campos únicos de la tarjeta naranja
+          // Actualizar campos únicos de la tarjeta naranja y campos compartidos iniciales
           setFormData((prev) => ({
             ...prev,
+            centroCostos: prev.centroCostos || orangeExtracted.centroCostos || '',
+            operacion: prev.operacion || orangeExtracted.operacion || '',
+            numeroHerramienta: prev.numeroHerramienta || orangeExtracted.numeroHerramienta || '',
+            maquina: prev.maquina || orangeExtracted.maquina || '',
+            husillo: prev.husillo || orangeExtracted.husillo || '',
             fechaDesmontaje: orangeExtracted.fecha || prev.fechaDesmontaje,
             turnoDesmontaje: orangeExtracted.turno || prev.turnoDesmontaje,
             nombreOperadorDesmontaje: orangeExtracted.nombre || prev.nombreOperadorDesmontaje,
@@ -203,9 +156,14 @@ export default function Home() {
             confidences: result.confidences as Record<string, number>,
           });
 
-          // Actualizar campos únicos de la tarjeta verde
+          // Actualizar campos únicos de la tarjeta verde y campos compartidos iniciales
           setFormData((prev) => ({
             ...prev,
+            centroCostos: prev.centroCostos || greenExtracted.centroCostos || '',
+            operacion: prev.operacion || greenExtracted.operacion || '',
+            numeroHerramienta: prev.numeroHerramienta || greenExtracted.numeroHerramienta || '',
+            maquina: prev.maquina || greenExtracted.maquina || '',
+            husillo: prev.husillo || greenExtracted.husillo || '',
             fechaInicial: greenExtracted.fecha || prev.fechaInicial,
             turnoInicial: greenExtracted.turno || prev.turnoInicial,
             nombreOperadorInicial: greenExtracted.nombre || prev.nombreOperadorInicial,
@@ -339,16 +297,25 @@ export default function Home() {
     }, 5000);
   };
 
-  const handleResetCurrent = () => {
-    handleRestoreMatch();
+  // Limpiar el formulario al 100% para capturar datos reales
+  const handleClearToBlank = () => {
+    setOrangeScan(null);
+    setGreenScan(null);
+    setFormData(EMPTY_UNIFIED_DATA);
+    setSharedMismatches({});
     setActiveFieldKey(null);
+    showNotification('Formulario limpiado. Listo para captura de tarjetas reales.', 'info');
+  };
+
+  const handleResetCurrent = () => {
+    handleClearToBlank();
   };
 
   // Imagen activa a mostrar en el CardInspector según la tarjeta seleccionada
   const activeInspectorImage =
     selectedCardType === 'naranja'
-      ? orangeScan?.imageUrl || generateMockCardSvg('naranja', SAMPLE_ORANGE_DATA)
-      : greenScan?.imageUrl || generateMockCardSvg('verde', SAMPLE_GREEN_DATA);
+      ? orangeScan?.imageUrl || ''
+      : greenScan?.imageUrl || '';
 
   const activeConfidences =
     selectedCardType === 'naranja'
@@ -369,7 +336,7 @@ export default function Home() {
       {/* Notificación Flotante Toast */}
       {notification && (
         <div
-          className={`fixed top-20 right-4 z-50 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-2 animate-bounce border ${
+          className={`print:hidden fixed top-20 right-4 z-50 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-2 animate-bounce border ${
             notification.type === 'error'
               ? 'bg-red-600 border-red-400'
               : notification.type === 'info'
@@ -387,9 +354,9 @@ export default function Home() {
       )}
 
       {/* Contenido Principal */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-6 lg:px-8 py-2.5 sm:py-6 space-y-3 sm:space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-6 lg:px-8 py-2.5 sm:py-6 space-y-3 sm:space-y-6 print:p-0 print:m-0 print:max-w-none">
         {/* Banner Informativo del Flujo Dual RUPTURAS TOTAL */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
+        <div className="print:hidden bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center space-x-3.5">
             <div className="w-11 h-11 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 flex-shrink-0">
               <Zap className="w-6 h-6" />
@@ -423,9 +390,9 @@ export default function Home() {
               <Cpu className="w-3.5 h-3.5" />
               <span>
                 {ollamaStatus?.online && ollamaStatus?.modelAvailable
-                  ? 'Ollama GLM-OCR: Conectado'
+                  ? 'Ollama LLaVA: Conectado'
                   : ollamaStatus?.online
-                  ? 'Ollama: Falta modelo glm-ocr'
+                  ? 'Ollama: Falta modelo llava'
                   : 'Ollama: Local'}
               </span>
               <span
@@ -449,14 +416,24 @@ export default function Home() {
               <span>Simular Discrepancia</span>
             </button>
 
-            {/* Botón para restaurar coincidencia */}
+            {/* Botón para limpiar formulario (Modo Real en Limpio) */}
+            <button
+              onClick={handleClearToBlank}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center space-x-1.5"
+              title="Limpiar formulario y preparar escaneo real desde cero"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+              <span>Limpiar (Modo Real)</span>
+            </button>
+
+            {/* Botón opcional para cargar muestra demo */}
             <button
               onClick={handleRestoreMatch}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center space-x-1.5"
-              title="Restaurar a coincidencia 100%"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-950/60 hover:bg-blue-900/70 text-blue-300 border border-blue-800/80 transition flex items-center space-x-1.5"
+              title="Cargar cartoncillos de demostración predefinidos"
             >
-              <RefreshCw className="w-3.5 h-3.5 text-blue-400" />
-              <span>Restaurar Coincidencia</span>
+              <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+              <span>Cargar Muestra (Demo)</span>
             </button>
 
             <button
@@ -616,7 +593,7 @@ export default function Home() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-white">
-                    Configuración de Ollama (GLM-OCR)
+                    Configuración de Ollama (LLaVA)
                   </h3>
                   <p className="text-xs text-slate-400">
                     Reconocimiento de texto impreso y manuscrito 100% en local sin enviar datos a la nube
@@ -640,7 +617,7 @@ export default function Home() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-300">Modelo GLM-OCR:</span>
+                  <span className="text-xs font-semibold text-slate-300">Modelo LLaVA:</span>
                   <span
                     className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
                       ollamaStatus?.modelAvailable
@@ -664,7 +641,7 @@ export default function Home() {
               <div className="space-y-2">
                 <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center space-x-1.5">
                   <Terminal className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Pasos para Activar GLM-OCR en tu Terminal:</span>
+                  <span>Pasos para Activar LLaVA en tu Terminal:</span>
                 </h4>
 
                 <div className="space-y-2 text-xs font-mono">
@@ -682,10 +659,10 @@ export default function Home() {
 
                   <div className="p-2.5 bg-black/60 rounded-lg border border-slate-800">
                     <p className="text-[11px] text-slate-400 font-sans mb-1">
-                      2. Descargar y ejecutar el modelo GLM-OCR (0.9B params, ~2.2 GB):
+                      2. Descargar y ejecutar el modelo LLaVA (7B params, ~4.7 GB):
                     </p>
                     <code className="text-amber-300 selection:bg-amber-800">
-                      ollama run glm-ocr
+                      ollama run llava
                     </code>
                   </div>
                 </div>
@@ -716,12 +693,12 @@ export default function Home() {
       </main>
 
       {/* Pie de Página */}
-      <footer className="bg-slate-900 border-t border-slate-800 py-4 text-center text-xs text-slate-500">
+      <footer className="print:hidden bg-slate-900 border-t border-slate-800 py-4 text-center text-xs text-slate-500">
         <p>
           Sistema de Digitalización de Cartoncillos HSK 63 • Volkswagen de México &copy; 2026.
         </p>
         <p className="text-[11px] text-slate-600 mt-0.5">
-          Hoja RUPTURAS TOTAL • Verificación cruzada OpenCV + Microsoft Graph API.
+          Hoja RUPTURAS TOTAL • Procesamiento 100% local con Ollama GLM-OCR.
         </p>
       </footer>
     </div>

@@ -2,7 +2,7 @@ import { CardType, OrangeCardData, GreenCardData, UnifiedRupturaData, Extraction
 
 // Muestras predefinidas realistas
 export const SAMPLE_ORANGE_DATA: OrangeCardData = {
-  centroCostos: '4120',
+  centroCostos: '4002',
   operacion: 'OP-20 FRESADO CARA',
   numeroHerramienta: 'T-10452',
   maquina: '3',
@@ -16,7 +16,7 @@ export const SAMPLE_ORANGE_DATA: OrangeCardData = {
 };
 
 export const SAMPLE_GREEN_DATA: GreenCardData = {
-  centroCostos: '4120',
+  centroCostos: '4002',
   operacion: 'OP-20 FRESADO CARA',
   numeroHerramienta: 'T-10452',
   maquina: '3',
@@ -30,7 +30,7 @@ export const SAMPLE_GREEN_DATA: GreenCardData = {
 
 // Muestra predefinida unificada (RUPTURAS TOTAL)
 export const SAMPLE_UNIFIED_DATA: UnifiedRupturaData = {
-  centroCostos: '4120',
+  centroCostos: '4002',
   operacion: 'OP-20 FRESADO CARA',
   numeroHerramienta: 'T-10452',
   maquina: '3',

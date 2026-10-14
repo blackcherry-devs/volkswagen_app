@@ -23,8 +23,66 @@ export const PrintableCardDesigner: React.FC<PrintableCardDesignerProps> = ({
   const isOrange = cardType === 'naranja';
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
-      {/* Controles de Vista de Impresión */}
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl print:bg-white print:border-none print:p-0 print:shadow-none">
+      {/* Estilos de impresión globales: fuera del #printable-card para HTML válido */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 10mm 8mm;
+          }
+          /* Ocultar SOLO los elementos de UI — NO el cartoncillo */
+          header,
+          footer,
+          nav,
+          .print\\:hidden,
+          [class*="print:hidden"] {
+            display: none !important;
+          }
+          body {
+            background: white !important;
+          }
+          /* Asegurar tamaños físicos exactos del cartoncillo */
+          #printable-card {
+            width: 80mm !important;
+            height: 190mm !important;
+            min-width: 80mm !important;
+            max-width: 80mm !important;
+            min-height: 190mm !important;
+            max-height: 190mm !important;
+            border-top-left-radius: 40mm !important;
+            border-top-right-radius: 40mm !important;
+            border-bottom-left-radius: 2mm !important;
+            border-bottom-right-radius: 2mm !important;
+            border: 0.5mm solid #000000 !important;
+            box-sizing: border-box !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            page-break-inside: avoid !important;
+            margin: 0 auto !important;
+            position: relative !important;
+          }
+          .print-hole {
+            width: 55.5mm !important;
+            height: 55.5mm !important;
+            top: 12.25mm !important;
+            left: 12.25mm !important;
+          }
+          .card-content-area {
+            padding-top: 70mm !important;
+            padding-left: 4mm !important;
+            padding-right: 4mm !important;
+            padding-bottom: 3mm !important;
+            box-sizing: border-box !important;
+          }
+          .fiducial-marker { width: 3.5mm !important; height: 3.5mm !important; }
+          .fiducial-top-left    { top: 70mm !important; left: 1mm !important; }
+          .fiducial-top-right   { top: 70mm !important; right: 1mm !important; }
+          .fiducial-bottom-left { bottom: 2mm !important; left: 1mm !important; }
+          .fiducial-bottom-right{ bottom: 2mm !important; right: 1mm !important; }
+        }
+      `}} />
+
       <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-slate-800 mb-6 print:hidden">
         <div>
           <div className="flex items-center space-x-2">
@@ -39,6 +97,9 @@ export const PrintableCardDesigner: React.FC<PrintableCardDesignerProps> = ({
           <p className="text-xs text-slate-400 mt-1">
             Medidas físicas exactas del cartón (80×190mm) con los campos establecidos de operación y control de herramienta.
           </p>
+          <div className="mt-2 inline-flex items-center space-x-2 bg-blue-950/40 border border-blue-800/60 rounded-lg px-2.5 py-1 text-[11px] text-blue-300">
+            <span>💡 <strong>Para imprimir a escala 1:1 exacta:</strong> En el diálogo de impresión, selecciona <em>Escala: 100% (o Tamaño Real)</em> y activa <em>Gráficos de fondo</em>.</span>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -97,7 +158,7 @@ export const PrintableCardDesigner: React.FC<PrintableCardDesignerProps> = ({
           {/* Botón Imprimir */}
           <button
             onClick={handlePrint}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-lg transition"
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-lg transition cursor-pointer"
           >
             <Printer className="w-4 h-4" />
             <span>Imprimir Tarjeta (Ctrl + P)</span>
@@ -139,49 +200,6 @@ export const PrintableCardDesigner: React.FC<PrintableCardDesignerProps> = ({
               boxSizing: 'border-box',
             }}
           >
-            {/* ESTILO DE IMPRESIÓN FORZADO EN MILÍMETROS EXACTOS */}
-            <style
-              dangerouslySetInnerHTML={{
-                __html: `
-                @media print {
-                  body {
-                    margin: 0 !important;
-                    padding: 0 !important;
-                    background: transparent !important;
-                  }
-                  #printable-card {
-                    width: 80mm !important;
-                    height: 190mm !important;
-                    min-width: 80mm !important;
-                    max-width: 80mm !important;
-                    min-height: 190mm !important;
-                    max-height: 190mm !important;
-                    border-top-left-radius: 40mm !important;
-                    border-top-right-radius: 40mm !important;
-                    border-bottom-left-radius: 2mm !important;
-                    border-bottom-right-radius: 2mm !important;
-                    border: 0.4mm solid #000000 !important;
-                    box-sizing: border-box !important;
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
-                    page-break-inside: avoid !important;
-                    page-break-after: avoid !important;
-                    margin: 5mm auto !important;
-                  }
-                  .print-hole {
-                    width: 55.5mm !important;
-                    height: 55.5mm !important;
-                    top: 12.25mm !important;
-                    left: 12.25mm !important;
-                  }
-                  .no-print {
-                    display: none !important;
-                  }
-                }
-              `,
-              }}
-            />
-
             {/* 1. AGUJERO CIRCULAR SUPERIOR: 55.5 mm (Radio 27.75 mm) */}
             {/* Margen perimetral: (80mm - 55.5mm) / 2 = 12.25 mm a los lados y arriba */}
             <div
@@ -223,26 +241,26 @@ export const PrintableCardDesigner: React.FC<PrintableCardDesignerProps> = ({
             </div>
 
             {/* 2. ZONA DE DATOS ESTABLECIDA CON LOS CAMPOS DEL PROYECTO (OPTIMIZADA PARA OCR) */}
-            <div className="pt-[315px] px-5 pb-4 flex flex-col justify-between h-full relative">
+            <div className="card-content-area pt-[315px] px-5 pb-4 flex flex-col justify-between h-full relative">
               {/* 4 Marcadores Fiduciales OpenCV (En los bordes externos sin tapar HSK ni C.C.) */}
               {showFiducials && (
                 <>
-                  <div className="absolute top-[315px] left-1 w-4 h-4 bg-black flex items-center justify-center">
+                  <div className="fiducial-marker fiducial-top-left absolute top-[315px] left-1 w-4 h-4 bg-black flex items-center justify-center">
                     <div className="w-2 h-2 bg-white flex items-center justify-center">
                       <div className="w-1 h-1 bg-black" />
                     </div>
                   </div>
-                  <div className="absolute top-[315px] right-1 w-4 h-4 bg-black flex items-center justify-center">
+                  <div className="fiducial-marker fiducial-top-right absolute top-[315px] right-1 w-4 h-4 bg-black flex items-center justify-center">
                     <div className="w-2 h-2 bg-white flex items-center justify-center">
                       <div className="w-1 h-1 bg-black" />
                     </div>
                   </div>
-                  <div className="absolute bottom-2 left-1 w-4 h-4 bg-black flex items-center justify-center">
+                  <div className="fiducial-marker fiducial-bottom-left absolute bottom-2 left-1 w-4 h-4 bg-black flex items-center justify-center">
                     <div className="w-2 h-2 bg-white flex items-center justify-center">
                       <div className="w-1 h-1 bg-black" />
                     </div>
                   </div>
-                  <div className="absolute bottom-2 right-1 w-4 h-4 bg-black flex items-center justify-center">
+                  <div className="fiducial-marker fiducial-bottom-right absolute bottom-2 right-1 w-4 h-4 bg-black flex items-center justify-center">
                     <div className="w-2 h-2 bg-white flex items-center justify-center">
                       <div className="w-1 h-1 bg-black" />
                     </div>
@@ -406,7 +424,7 @@ export const PrintableCardDesigner: React.FC<PrintableCardDesignerProps> = ({
       </div>
 
       {/* Tabla Resumen de Especificaciones Técnicas */}
-      <div className="mt-6 pt-5 border-t border-slate-800 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+      <div className="print:hidden mt-6 pt-5 border-t border-slate-800 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
         <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
           <span className="text-slate-500 block text-[10px] uppercase font-bold">Ancho Total</span>
           <span className="text-white font-mono font-bold text-sm">80.0 mm</span>

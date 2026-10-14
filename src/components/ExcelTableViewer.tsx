@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Download, FileSpreadsheet, CheckCircle2, Cloud, Sparkles } from 'lucide-react';
+import { Download, FileSpreadsheet, CheckCircle2, Sparkles } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { SavedRecord, UnifiedRupturaData } from '@/types/card';
+import { SavedRecord, UnifiedRupturaData, getLineaFromCentroCostos } from '@/types/card';
 
 interface ExcelTableViewerProps {
   savedRecords: SavedRecord[];
@@ -21,6 +21,7 @@ export const ExcelTableViewer: React.FC<ExcelTableViewerProps> = ({ savedRecords
         'Fila Excel': idx + 1,
         'ID Registro': r.id,
         'Fecha Captura': r.verifiedAt,
+        'Línea de Producción': getLineaFromCentroCostos(d.centroCostos),
         'Centro de Costos (CC)': d.centroCostos,
         'Operación': d.operacion,
         'No. Herramienta': d.numeroHerramienta,
@@ -39,7 +40,7 @@ export const ExcelTableViewer: React.FC<ExcelTableViewerProps> = ({ savedRecords
         'Vida Útil Lograda (Naranja)': d.tiempoVidaUtilDesmontaje,
         'Motivo de Desmontaje (Naranja)': d.motivoDesmontaje,
         'Observaciones Desmontaje (Naranja)': d.observacionesDesmontaje || '—',
-        'Estado Graph API': 'SINCRONIZADO',
+        'Estado': 'LOCAL ✓',
       };
     });
 
@@ -50,6 +51,7 @@ export const ExcelTableViewer: React.FC<ExcelTableViewerProps> = ({ savedRecords
       { wch: 10 }, // Fila
       { wch: 14 }, // ID
       { wch: 18 }, // Fecha Captura
+      { wch: 20 }, // Línea de Producción
       { wch: 16 }, // CC
       { wch: 22 }, // Operación
       { wch: 18 }, // No. Herramienta
@@ -107,17 +109,17 @@ export const ExcelTableViewer: React.FC<ExcelTableViewerProps> = ({ savedRecords
         </div>
       </div>
 
-      {/* Alerta de Integración Microsoft Graph */}
-      <div className="p-3 bg-blue-950/40 border border-blue-800/60 rounded-xl flex items-center justify-between text-xs text-blue-200">
+      {/* Indicador local */}
+      <div className="p-3 bg-slate-950/60 border border-slate-800 rounded-xl flex items-center justify-between text-xs text-slate-400">
         <div className="flex items-center space-x-2">
-          <Cloud className="w-4 h-4 text-blue-400 flex-shrink-0" />
+          <Sparkles className="w-4 h-4 text-blue-400 flex-shrink-0" />
           <span>
-            <strong>Conexión Microsoft Graph (SharePoint / OneDrive):</strong> Cada par de tarjetas cotejadas inserta una fila completa en la hoja <code>RUPTURAS TOTAL</code> con campos compartidos validados y campos únicos de cada tarjeta.
+            <strong className="text-slate-200">Almacenamiento 100% Local:</strong> Los datos se guardan en sesión y se exportan como archivo <code className="text-emerald-400">.xlsx</code> directamente en tu equipo. Ningún dato sale de la planta.
           </span>
         </div>
         <span className="hidden sm:inline-flex items-center space-x-1 text-emerald-400 font-mono text-[11px] font-bold">
           <CheckCircle2 className="w-3.5 h-3.5" />
-          <span>En línea</span>
+          <span>Local</span>
         </span>
       </div>
 
@@ -128,6 +130,7 @@ export const ExcelTableViewer: React.FC<ExcelTableViewerProps> = ({ savedRecords
             <tr>
               <th className="px-3 py-3 text-slate-500">Fila</th>
               <th className="px-3 py-3 text-blue-300">ID</th>
+              <th className="px-3 py-3 text-amber-300 font-bold bg-amber-950/30 border-b-2 border-amber-500/50">Línea</th>
               <th className="px-3 py-3 text-blue-400 font-bold bg-blue-950/20">CC (Cotejado)</th>
               <th className="px-3 py-3 text-white font-bold bg-blue-950/20">No. Herramienta</th>
               <th className="px-3 py-3 text-slate-300 bg-blue-950/20">Operación</th>
@@ -152,7 +155,7 @@ export const ExcelTableViewer: React.FC<ExcelTableViewerProps> = ({ savedRecords
             {savedRecords.length === 0 ? (
               <tr>
                 <td
-                  colSpan={18}
+                  colSpan={19}
                   className="px-4 py-12 text-center text-slate-500 italic"
                 >
                   No hay filas guardadas en RUPTURAS TOTAL todavía. Escanea ambas tarjetas (Naranja y Verde) y confirma el formulario.
@@ -161,6 +164,7 @@ export const ExcelTableViewer: React.FC<ExcelTableViewerProps> = ({ savedRecords
             ) : (
               savedRecords.map((record, index) => {
                 const d = record.data;
+                const linea = getLineaFromCentroCostos(d.centroCostos);
                 return (
                   <tr
                     key={record.id}
@@ -168,6 +172,11 @@ export const ExcelTableViewer: React.FC<ExcelTableViewerProps> = ({ savedRecords
                   >
                     <td className="px-3 py-2.5 text-slate-500 font-bold">{index + 1}</td>
                     <td className="px-3 py-2.5 text-blue-400">{record.id}</td>
+                    <td className="px-3 py-2.5 bg-amber-950/10 font-sans">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 whitespace-nowrap">
+                        {linea}
+                      </span>
+                    </td>
                     <td className="px-3 py-2.5 text-blue-400 font-bold bg-blue-950/10">{d.centroCostos}</td>
                     <td className="px-3 py-2.5 font-bold text-white bg-blue-950/10">{d.numeroHerramienta}</td>
                     <td className="px-3 py-2.5 text-slate-300 font-sans bg-blue-950/10">{d.operacion}</td>

@@ -27,15 +27,20 @@ body {
 
 @media print {
   @page {
-    size: auto;
-    margin: 10mm;
+    size: A4 portrait;
+    margin: 10mm 8mm;
   }
   body {
-    background: transparent !important;
+    background: white !important;
     color: #000000 !important;
   }
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  /* Ocultar elementos de UI que no deben imprimirse */
+  header, footer, nav {
+    display: none !important;
   }
 }
