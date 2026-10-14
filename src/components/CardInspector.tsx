@@ -27,7 +27,18 @@ export const CardInspector: React.FC<CardInspectorProps> = ({
   hasGreenImage,
 }) => {
   const [zoomLevel, setZoomLevel] = useState<number>(1);
-  const template: CardTemplate = getTemplate(cardType);
+  const [template, setTemplate] = useState<CardTemplate>(() => getTemplate(cardType));
+
+  React.useEffect(() => {
+    setTemplate(getTemplate(cardType));
+
+    const handleUpdate = () => {
+      setTemplate(getTemplate(cardType));
+    };
+
+    window.addEventListener('vw-coordinates-updated', handleUpdate);
+    return () => window.removeEventListener('vw-coordinates-updated', handleUpdate);
+  }, [cardType]);
 
   const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.25, 2.5));
   const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.25, 0.75));

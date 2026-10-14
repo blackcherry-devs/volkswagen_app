@@ -1,4 +1,7 @@
-import { CardTemplate } from '@/types/card';
+import { CardTemplate, CardType } from '@/types/card';
+
+export const LS_KEY_NARANJA_TEMPLATE = 'vw_card_template_naranja_v3';
+export const LS_KEY_VERDE_TEMPLATE   = 'vw_card_template_verde_v3';
 
 // Plantilla Cartoncillo Naranja HSK 63 (Con arco superior de 40mm radio, hoyo de 55.5mm y 10 campos oficiales)
 export const ORANGE_CARD_TEMPLATE: CardTemplate = {
@@ -9,10 +12,10 @@ export const ORANGE_CARD_TEMPLATE: CardTemplate = {
   subtitle: 'CONTROL DE HERRAMIENTA & REGISTRO DE DESMONTAJE',
   aspectRatio: 80 / 190, // 80 mm ancho / 190 mm alto = 0.42105 (proporción física real)
   fiducialMarkers: {
-    topLeft: { x: 0.031, y: 0.368 },
-    topRight: { x: 0.969, y: 0.368 },
-    bottomLeft: { x: 0.031, y: 0.955 },
-    bottomRight: { x: 0.969, y: 0.955 },
+    topLeft: { x: 0.0525, y: 0.3774 },
+    topRight: { x: 0.9475, y: 0.3774 },
+    bottomLeft: { x: 0.0525, y: 0.9642 },
+    bottomRight: { x: 0.9475, y: 0.9642 },
   },
   fields: {
     centroCostos: {
@@ -75,14 +78,14 @@ export const ORANGE_CARD_TEMPLATE: CardTemplate = {
       x: 0.085,
       y: 0.600,
       width: 0.83,
-      height: 0.123,
+      height: 0.098,
       type: 'checkbox',
     },
     observaciones: {
       id: 'observaciones',
       label: 'Observaciones / Falla',
       x: 0.085,
-      y: 0.703,
+      y: 0.708,
       width: 0.83,
       height: 0.038,
       type: 'handwritten',
@@ -126,10 +129,10 @@ export const GREEN_CARD_TEMPLATE: CardTemplate = {
   subtitle: 'TARJETA DE CONTROL Y SEGUIMIENTO DE HERRAMIENTA',
   aspectRatio: 80 / 190, // 80 mm ancho / 190 mm alto = 0.42105
   fiducialMarkers: {
-    topLeft: { x: 0.031, y: 0.368 },
-    topRight: { x: 0.969, y: 0.368 },
-    bottomLeft: { x: 0.031, y: 0.955 },
-    bottomRight: { x: 0.969, y: 0.955 },
+    topLeft: { x: 0.0525, y: 0.3774 },
+    topRight: { x: 0.9475, y: 0.3774 },
+    bottomLeft: { x: 0.0525, y: 0.9642 },
+    bottomRight: { x: 0.9475, y: 0.9642 },
   },
   fields: {
     centroCostos: {
@@ -225,6 +228,60 @@ export const GREEN_CARD_TEMPLATE: CardTemplate = {
   },
 };
 
+// Carga la plantilla activa: si el usuario calibró y guardó coordenadas en localStorage, usa esas
 export function getTemplate(type: 'naranja' | 'verde'): CardTemplate {
-  return type === 'naranja' ? ORANGE_CARD_TEMPLATE : GREEN_CARD_TEMPLATE;
+  const base = type === 'naranja' ? ORANGE_CARD_TEMPLATE : GREEN_CARD_TEMPLATE;
+  if (typeof window === 'undefined') return base;
+
+  try {
+    const key = type === 'naranja' ? LS_KEY_NARANJA_TEMPLATE : LS_KEY_VERDE_TEMPLATE;
+    const raw = localStorage.getItem(key);
+    if (!raw) return base;
+
+    const custom = JSON.parse(raw);
+    if (!custom || typeof custom !== 'object') return base;
+
+    return {
+      ...base,
+      fiducialMarkers: {
+        ...base.fiducialMarkers,
+        ...(custom.fiducialMarkers || {}),
+      },
+      fields: {
+        ...base.fields,
+        ...(custom.fields || {}),
+      },
+    };
+  } catch {
+    return base;
+  }
+}
+
+// Guarda permanentemente la plantilla calibrada en el navegador y emite evento global
+export function saveTemplateToStorage(
+  type: 'naranja' | 'verde',
+  data: {
+    fields?: Record<string, any>;
+    fiducialMarkers?: {
+      topLeft?: { x: number; y: number };
+      topRight?: { x: number; y: number };
+      bottomLeft?: { x: number; y: number };
+      bottomRight?: { x: number; y: number };
+    };
+  }
+): void {
+  if (typeof window === 'undefined') return;
+  const key = type === 'naranja' ? LS_KEY_NARANJA_TEMPLATE : LS_KEY_VERDE_TEMPLATE;
+  localStorage.setItem(key, JSON.stringify(data));
+  window.dispatchEvent(new CustomEvent('vw-coordinates-updated', { detail: { cardType: type } }));
+}
+
+// Restablece la plantilla a los valores oficiales de fábrica
+export function resetTemplateStorage(type: 'naranja' | 'verde'): void {
+  if (typeof window === 'undefined') return;
+  const key = type === 'naranja' ? LS_KEY_NARANJA_TEMPLATE : LS_KEY_VERDE_TEMPLATE;
+  localStorage.removeItem(key);
+  // Limpiar también legacy keys si existían
+  localStorage.removeItem(`calibrator_fields_${type}_v2`);
+  window.dispatchEvent(new CustomEvent('vw-coordinates-updated', { detail: { cardType: type } }));
 }

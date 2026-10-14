@@ -60,27 +60,27 @@ export function generateMockCardSvg(type: CardType, data: OrangeCardData | Green
   // Para el cartón naranja: Cuadrícula de 12 casillas marcables en 2 columnas
   const orangeMotivosCheckboxes = isOrange
     ? `
-    <!-- Motivo de Desmontaje (12 casillas en 2 columnas) -->
+    <!-- Motivo de Desmontaje (12 casillas en 2 columnas compactas) -->
     <g transform="translate(68, 1140)">
-      <rect width="664" height="230" rx="8" fill="#ffffff" fill-opacity="0.95" stroke="#000000" stroke-width="2"/>
-      <text x="16" y="24" font-family="sans-serif" font-size="14" font-weight="900" fill="#000000">
+      <rect width="664" height="175" rx="8" fill="#ffffff" fill-opacity="0.95" stroke="#000000" stroke-width="2"/>
+      <text x="16" y="22" font-family="sans-serif" font-size="13" font-weight="900" fill="#000000">
         MOTIVO DE DESMONTAJE (MARCAR CON X):
       </text>
 
       <!-- Columna 1 (6 casillas) -->
       ${MOTIVOS_DESMONTAJE.slice(0, 6)
         .map((motivo, i) => {
-          const yPos = 42 + i * 28;
+          const yPos = 34 + i * 22;
           const isChecked = (data as OrangeCardData).motivoDesmontaje === motivo;
           return `
             <g transform="translate(16, ${yPos})">
-              <rect width="18" height="18" fill="#ffffff" stroke="#000000" stroke-width="2" rx="2"/>
+              <rect width="16" height="16" fill="#ffffff" stroke="#000000" stroke-width="2" rx="2"/>
               ${
                 isChecked
-                  ? '<line x1="3" y1="3" x2="15" y2="15" stroke="#000000" stroke-width="3"/><line x1="15" y1="3" x2="3" y2="15" stroke="#000000" stroke-width="3"/>'
+                  ? '<line x1="2" y1="2" x2="14" y2="14" stroke="#000000" stroke-width="3"/><line x1="14" y1="2" x2="2" y2="14" stroke="#000000" stroke-width="3"/>'
                   : ''
               }
-              <text x="26" y="14" font-family="sans-serif" font-size="13" font-weight="${
+              <text x="24" y="13" font-family="sans-serif" font-size="12" font-weight="${
                 isChecked ? 'bold' : 'normal'
               }" fill="#000000">${motivo}</text>
             </g>
@@ -91,17 +91,17 @@ export function generateMockCardSvg(type: CardType, data: OrangeCardData | Green
       <!-- Columna 2 (6 casillas) -->
       ${MOTIVOS_DESMONTAJE.slice(6, 12)
         .map((motivo, i) => {
-          const yPos = 42 + i * 28;
+          const yPos = 34 + i * 22;
           const isChecked = (data as OrangeCardData).motivoDesmontaje === motivo;
           return `
             <g transform="translate(340, ${yPos})">
-              <rect width="18" height="18" fill="#ffffff" stroke="#000000" stroke-width="2" rx="2"/>
+              <rect width="16" height="16" fill="#ffffff" stroke="#000000" stroke-width="2" rx="2"/>
               ${
                 isChecked
-                  ? '<line x1="3" y1="3" x2="15" y2="15" stroke="#000000" stroke-width="3"/><line x1="15" y1="3" x2="3" y2="15" stroke="#000000" stroke-width="3"/>'
+                  ? '<line x1="2" y1="2" x2="14" y2="14" stroke="#000000" stroke-width="3"/><line x1="14" y1="2" x2="2" y2="14" stroke="#000000" stroke-width="3"/>'
                   : ''
               }
-              <text x="26" y="14" font-family="sans-serif" font-size="13" font-weight="${
+              <text x="24" y="13" font-family="sans-serif" font-size="12" font-weight="${
                 isChecked ? 'bold' : 'normal'
               }" fill="#000000">${motivo}</text>
             </g>
