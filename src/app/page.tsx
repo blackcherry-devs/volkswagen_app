@@ -30,12 +30,6 @@ import {
   SHARED_FIELD_KEYS,
   EMPTY_UNIFIED_DATA,
 } from '@/types/card';
-import {
-  SAMPLE_ORANGE_DATA,
-  SAMPLE_GREEN_DATA,
-  SAMPLE_UNIFIED_DATA,
-  generateMockCardSvg,
-} from '@/lib/mockData';
 import { compareSharedFields } from '@/lib/validation';
 import { checkOllamaStatus, runOcrRecognition, OllamaStatus } from '@/lib/ocrService';
 import { Terminal, Cpu, HelpCircle, X, RotateCcw } from 'lucide-react';
@@ -122,28 +116,27 @@ export default function Home() {
             confidences: result.confidences as Record<string, number>,
           });
 
-          // Actualizar campos únicos de la tarjeta naranja y campos compartidos iniciales
-          setFormData((prev) => ({
-            ...prev,
-            centroCostos: prev.centroCostos || orangeExtracted.centroCostos || '',
-            operacion: prev.operacion || orangeExtracted.operacion || '',
-            numeroHerramienta: prev.numeroHerramienta || orangeExtracted.numeroHerramienta || '',
-            maquina: prev.maquina || orangeExtracted.maquina || '',
-            husillo: prev.husillo || orangeExtracted.husillo || '',
-            fechaDesmontaje: orangeExtracted.fecha || prev.fechaDesmontaje,
-            turnoDesmontaje: orangeExtracted.turno || prev.turnoDesmontaje,
-            nombreOperadorDesmontaje: orangeExtracted.nombre || prev.nombreOperadorDesmontaje,
-            tiempoVidaUtilDesmontaje: orangeExtracted.tiempoVidaUtil || prev.tiempoVidaUtilDesmontaje,
-            motivoDesmontaje: orangeExtracted.motivoDesmontaje || prev.motivoDesmontaje,
-            observacionesDesmontaje: orangeExtracted.observaciones || prev.observacionesDesmontaje,
-          }));
-
-          // Cotejar campos compartidos si la tarjeta verde ya fue escaneada
+          // Si la tarjeta verde ya fue escaneada, cotejar datos reales entre ambas
           if (greenScan) {
             runCrossValidation(orangeExtracted, greenScan.data);
           } else {
+            // Primera tarjeta escaneada: reflejar fielmente los datos reales leídos
+            setFormData((prev) => ({
+              ...prev,
+              centroCostos: orangeExtracted.centroCostos || prev.centroCostos,
+              operacion: orangeExtracted.operacion || prev.operacion,
+              numeroHerramienta: orangeExtracted.numeroHerramienta || prev.numeroHerramienta,
+              maquina: orangeExtracted.maquina || prev.maquina,
+              husillo: orangeExtracted.husillo || prev.husillo,
+              fechaDesmontaje: orangeExtracted.fecha || '',
+              turnoDesmontaje: orangeExtracted.turno || '',
+              nombreOperadorDesmontaje: orangeExtracted.nombre || '',
+              tiempoVidaUtilDesmontaje: orangeExtracted.tiempoVidaUtil || '',
+              motivoDesmontaje: orangeExtracted.motivoDesmontaje || '',
+              observacionesDesmontaje: orangeExtracted.observaciones || '',
+            }));
             showNotification(
-              'Tarjeta Naranja procesada. Escanea ahora la Tarjeta Verde para cotejar los 5 campos compartidos.',
+              'Tarjeta Naranja procesada con éxito. Escanea ahora la Tarjeta Verde para cotejar los 5 campos compartidos.',
               'info'
             );
           }
@@ -156,27 +149,26 @@ export default function Home() {
             confidences: result.confidences as Record<string, number>,
           });
 
-          // Actualizar campos únicos de la tarjeta verde y campos compartidos iniciales
-          setFormData((prev) => ({
-            ...prev,
-            centroCostos: prev.centroCostos || greenExtracted.centroCostos || '',
-            operacion: prev.operacion || greenExtracted.operacion || '',
-            numeroHerramienta: prev.numeroHerramienta || greenExtracted.numeroHerramienta || '',
-            maquina: prev.maquina || greenExtracted.maquina || '',
-            husillo: prev.husillo || greenExtracted.husillo || '',
-            fechaInicial: greenExtracted.fecha || prev.fechaInicial,
-            turnoInicial: greenExtracted.turno || prev.turnoInicial,
-            nombreOperadorInicial: greenExtracted.nombre || prev.nombreOperadorInicial,
-            tiempoVidaUtilInicial: greenExtracted.tiempoVidaUtil || prev.tiempoVidaUtilInicial,
-            observacionesInicial: greenExtracted.observaciones || prev.observacionesInicial,
-          }));
-
-          // Cotejar campos compartidos si la tarjeta naranja ya fue escaneada
+          // Si la tarjeta naranja ya fue escaneada, cotejar datos reales entre ambas
           if (orangeScan) {
             runCrossValidation(orangeScan.data, greenExtracted);
           } else {
+            // Primera tarjeta escaneada: reflejar fielmente los datos reales leídos
+            setFormData((prev) => ({
+              ...prev,
+              centroCostos: greenExtracted.centroCostos || prev.centroCostos,
+              operacion: greenExtracted.operacion || prev.operacion,
+              numeroHerramienta: greenExtracted.numeroHerramienta || prev.numeroHerramienta,
+              maquina: greenExtracted.maquina || prev.maquina,
+              husillo: greenExtracted.husillo || prev.husillo,
+              fechaInicial: greenExtracted.fecha || '',
+              turnoInicial: greenExtracted.turno || '',
+              nombreOperadorInicial: greenExtracted.nombre || '',
+              tiempoVidaUtilInicial: greenExtracted.tiempoVidaUtil || '',
+              observacionesInicial: greenExtracted.observaciones || '',
+            }));
             showNotification(
-              'Tarjeta Verde procesada. Escanea ahora la Tarjeta Naranja para cotejar los 5 campos compartidos.',
+              'Tarjeta Verde procesada con éxito. Escanea ahora la Tarjeta Naranja para cotejar los 5 campos compartidos.',
               'info'
             );
           }
@@ -191,7 +183,7 @@ export default function Home() {
     }
   };
 
-  // Lógica principal de comparación cruzada de los 5 campos repetidos
+  // Lógica principal de comparación cruzada de los 5 campos repetidos con datos 100% reales
   const runCrossValidation = (orangeData: OrangeCardData, greenData: GreenCardData) => {
     const { mismatches, matchedValues } = compareSharedFields(
       orangeData as any,
@@ -200,29 +192,49 @@ export default function Home() {
 
     setSharedMismatches(mismatches);
 
-    // Actualizar campos en el formulario: si coinciden, se capturan; si no coinciden, NO se capturan (quedan vacíos)
     setFormData((prev) => {
-      const updated = { ...prev };
+      const updated = {
+        ...prev,
+        // Datos únicos reales de la Tarjeta Naranja
+        fechaDesmontaje: orangeData.fecha || prev.fechaDesmontaje || '',
+        turnoDesmontaje: orangeData.turno || prev.turnoDesmontaje || '',
+        nombreOperadorDesmontaje: orangeData.nombre || prev.nombreOperadorDesmontaje || '',
+        tiempoVidaUtilDesmontaje: orangeData.tiempoVidaUtil || prev.tiempoVidaUtilDesmontaje || '',
+        motivoDesmontaje: orangeData.motivoDesmontaje || prev.motivoDesmontaje || '',
+        observacionesDesmontaje: orangeData.observaciones || prev.observacionesDesmontaje || '',
+
+        // Datos únicos reales de la Tarjeta Verde
+        fechaInicial: greenData.fecha || prev.fechaInicial || '',
+        turnoInicial: greenData.turno || prev.turnoInicial || '',
+        nombreOperadorInicial: greenData.nombre || prev.nombreOperadorInicial || '',
+        tiempoVidaUtilInicial: greenData.tiempoVidaUtil || prev.tiempoVidaUtilInicial || '',
+        observacionesInicial: greenData.observaciones || prev.observacionesInicial || '',
+      };
+
+      // 5 Campos compartidos (Cotejo estricto)
       SHARED_FIELD_KEYS.forEach((key) => {
         if (mismatches[key]) {
-          // REGLA: si no coinciden, NO captures esa información
+          // REGLA VW: Si no coinciden, NO captures esa información (queda vacío y se marca en rojo)
           updated[key] = '';
         } else if (matchedValues[key]) {
           updated[key] = matchedValues[key];
+        } else {
+          updated[key] = orangeData[key] || greenData[key] || '';
         }
       });
+
       return updated;
     });
 
     const mismatchCount = Object.values(mismatches).filter(Boolean).length;
     if (mismatchCount > 0) {
       showNotification(
-        `Se detectaron ${mismatchCount} campo(s) con discrepancia entre ambas tarjetas. Verifica y corrígelos en rojo.`,
+        `Se detectaron ${mismatchCount} campo(s) con discrepancia entre ambas tarjetas reales. Verifica y corrígelos en rojo.`,
         'error'
       );
     } else {
       showNotification(
-        '¡Ambas tarjetas cotejadas con éxito! Los 5 campos compartidos coinciden.',
+        '¡Ambas tarjetas cotejadas con éxito! Los 5 campos compartidos coinciden exactamente.',
         'success'
       );
     }
@@ -230,44 +242,24 @@ export default function Home() {
 
   // Botón para simular intencionalmente una discrepancia para pruebas del usuario
   const handleSimulateMismatchTest = () => {
-    if (!orangeScan || !greenScan) return;
+    if (!orangeScan || !greenScan) {
+      showNotification('Primero escanea o sube ambas tarjetas reales (Naranja y Verde) para probar el cotejo.', 'info');
+      return;
+    }
 
-    // Crear discrepancia en Husillo y Centro de Costos
+    // Crear discrepancia intencional en Husillo y Centro de Costos para verificar la alerta roja
     const modifiedGreen: GreenCardData = {
       ...greenScan.data,
-      centroCostos: '4999', // Discrepancia con 4120
-      husillo: '4',         // Discrepancia con 2
+      centroCostos: '4999',
+      husillo: '4',
     };
 
     setGreenScan({
       ...greenScan,
       data: modifiedGreen,
-      imageUrl: generateMockCardSvg('verde', modifiedGreen),
     });
 
     runCrossValidation(orangeScan.data, modifiedGreen);
-  };
-
-  // Botón para restaurar coincidencia 100%
-  const handleRestoreMatch = () => {
-    const orangeSvg = generateMockCardSvg('naranja', SAMPLE_ORANGE_DATA);
-    const greenSvg = generateMockCardSvg('verde', SAMPLE_GREEN_DATA);
-
-    setOrangeScan({
-      imageUrl: orangeSvg,
-      data: SAMPLE_ORANGE_DATA,
-      confidences: { centroCostos: 98, operacion: 92, numeroHerramienta: 96, maquina: 99, husillo: 97 },
-    });
-
-    setGreenScan({
-      imageUrl: greenSvg,
-      data: SAMPLE_GREEN_DATA,
-      confidences: { centroCostos: 99, operacion: 94, numeroHerramienta: 97, maquina: 98, husillo: 96 },
-    });
-
-    setFormData(SAMPLE_UNIFIED_DATA);
-    setSharedMismatches({});
-    showNotification('Valores restaurados a coincidencia completa (100% cotejados).', 'success');
   };
 
   // Guardar datos validados en el libro Excel (Hoja RUPTURAS TOTAL)
@@ -321,6 +313,16 @@ export default function Home() {
     selectedCardType === 'naranja'
       ? orangeScan?.confidences || {}
       : greenScan?.confidences || {};
+
+  const handleImageTransformed = (newImageUrl: string) => {
+    if (selectedCardType === 'naranja' && orangeScan) {
+      setOrangeScan({ ...orangeScan, imageUrl: newImageUrl });
+      showNotification('Imagen de Tarjeta Naranja enderezada y actualizada.', 'info');
+    } else if (selectedCardType === 'verde' && greenScan) {
+      setGreenScan({ ...greenScan, imageUrl: newImageUrl });
+      showNotification('Imagen de Tarjeta Verde enderezada y actualizada.', 'info');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
@@ -423,17 +425,7 @@ export default function Home() {
               title="Limpiar formulario y preparar escaneo real desde cero"
             >
               <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
-              <span>Limpiar (Modo Real)</span>
-            </button>
-
-            {/* Botón opcional para cargar muestra demo */}
-            <button
-              onClick={handleRestoreMatch}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-950/60 hover:bg-blue-900/70 text-blue-300 border border-blue-800/80 transition flex items-center space-x-1.5"
-              title="Cargar cartoncillos de demostración predefinidos"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-              <span>Cargar Muestra (Demo)</span>
+              <span>Limpiar Formulario</span>
             </button>
 
             <button
@@ -533,6 +525,7 @@ export default function Home() {
                   onSelectCardType={(t) => setSelectedCardType(t)}
                   hasOrangeImage={Boolean(orangeScan)}
                   hasGreenImage={Boolean(greenScan)}
+                  onImageTransformed={handleImageTransformed}
                 />
               </div>
 
@@ -698,7 +691,7 @@ export default function Home() {
           Sistema de Digitalización de Cartoncillos HSK 63 • Volkswagen de México &copy; 2026.
         </p>
         <p className="text-[11px] text-slate-600 mt-0.5">
-          Hoja RUPTURAS TOTAL • Procesamiento 100% local con Ollama GLM-OCR.
+          Hoja RUPTURAS TOTAL • Procesamiento 100% local con Ollama LLaVA.
         </p>
       </footer>
     </div>

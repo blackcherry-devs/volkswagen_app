@@ -155,53 +155,57 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Prompt para LLaVA (vision model) adaptado a los cartoncillos HSK 63 de Volkswagen de México
+// Prompt para LLaVA adaptado a los cartoncillos HSK 63 de Volkswagen de México
 function buildOcrPrompt(cardType: string): string {
   const isOrange = cardType === 'naranja';
 
   if (isOrange) {
-    return `Text Recognition: You are an industrial OCR expert for Volkswagen de México.
-Analyze this HSK 63 Orange Tool Control Card (Cartoncillo Naranja de Desmontaje).
-Read both printed labels and handwritten ballpoint pen text, comb boxes, and marked checkboxes.
+    return `You are a high-precision OCR system for Volkswagen de México factory cards.
+Look at this HSK 63 Orange Tool Control Card (Cartoncillo Naranja de Desmontaje).
+Read ONLY the real handwritten ballpoint pen text and printed characters physically present on the card.
+DO NOT use placeholder names, sample numbers or fictitious data.
+If a field is empty, not filled or not legible, set its value strictly to "".
 
-Extract all data and return ONLY a valid JSON object with EXACTLY these keys:
+Transcribe the fields into a valid JSON object with these exact keys:
 {
-  "centroCostos": "4 digits starting with 4 found in C.C. boxes (e.g. 4120)",
-  "operacion": "Operation text following 'Operación:' (e.g. OP-20 FRESADO CARA)",
-  "numeroHerramienta": "Tool number starting with T following 'No. de Herramienta:' (e.g. T-10452)",
-  "maquina": "Machine station number from 1 to 10 (e.g. 3)",
-  "husillo": "Spindle number from 1 to 4 (e.g. 2)",
-  "tiempoVidaUtil": "Achieved tool life piece count (digits only, e.g. 1450)",
-  "fecha": "Date in format YYYY-MM-DD or DD/MM/AAAA (e.g. 2026-10-09)",
-  "turno": "Shift number 1, 2 or 3 (e.g. 1)",
-  "nombre": "Operator full name (e.g. Carlos E. Mendoza)",
-  "motivoDesmontaje": "Marked reason from the 12 checkboxes: Rotura, Formación de rebaba, Rugosidad alta, Rugosidad baja, Diámetro grande, Diámetro pequeño, Ángulo de especificación, Forma fuera de especificación, Despostilladura, Análisis de herramientas necesario, Fallo de operador, Fallo de máquina",
-  "observaciones": "Handwritten observations or failure details"
+  "centroCostos": "Read the 4 digits handwritten in the C.C. boxes at top-right (starts with 4)",
+  "operacion": "Text handwritten after 'Operación:'",
+  "numeroHerramienta": "Tool number written after 'No. de Herramienta:' (starts with T)",
+  "maquina": "Number (1 to 10) written under 'Máquina'",
+  "husillo": "Checked or written spindle box (1 to 4) under 'Husillo'",
+  "tiempoVidaUtil": "Digits written under 'Tiempo de vida útil logrado'",
+  "fecha": "Date handwritten on the card (format DD/MM/AAAA or YYYY-MM-DD)",
+  "turno": "Shift number (1, 2 or 3) marked under 'Turno'",
+  "nombre": "Operator name handwritten under 'Nombre del Operador'",
+  "motivoDesmontaje": "Reason marked with an X among: Rotura, Formación de rebaba, Rugosidad alta, Rugosidad baja, Diámetro grande, Diámetro pequeño, Ángulo de especificación, Forma fuera de especificación, Despostilladura, Análisis de herramientas necesario, Fallo de operador, Fallo de máquina",
+  "observaciones": "Any handwritten notes written under 'OBSERVACIONES / DETALLES DE FALLA'"
 }
 
-IMPORTANT: Return ONLY the JSON object. No explanations, no markdown codeblocks.`;
+Return ONLY the raw JSON object. No explanations.`;
   }
 
   // Tarjeta Verde (Inicial / Seguimiento)
-  return `Text Recognition: You are an industrial OCR expert for Volkswagen de México.
-Analyze this HSK 63 Green Tool Control Card (Cartoncillo Verde Inicial / Seguimiento).
-Read both printed labels and handwritten ballpoint pen text in comb boxes and form lines.
+  return `You are a high-precision OCR system for Volkswagen de México factory cards.
+Look at this HSK 63 Green Tool Control Card (Cartoncillo Verde Inicial / Seguimiento).
+Read ONLY the real handwritten ballpoint pen text and printed characters physically present on the card.
+DO NOT use placeholder names, sample numbers or fictitious data.
+If a field is empty, not filled or not legible, set its value strictly to "".
 
-Extract all data and return ONLY a valid JSON object with EXACTLY these keys:
+Transcribe the fields into a valid JSON object with these exact keys:
 {
-  "centroCostos": "4 digits starting with 4 found in C.C. boxes (e.g. 4120)",
-  "operacion": "Operation text following 'Operación:' (e.g. OP-20 FRESADO CARA)",
-  "numeroHerramienta": "Tool number starting with T following 'No. de Herramienta:' (e.g. T-10452)",
-  "maquina": "Machine station number from 1 to 10 (e.g. 3)",
-  "husillo": "Spindle number from 1 to 4 (e.g. 2)",
-  "tiempoVidaUtil": "Target or initial tool life piece count (e.g. 2800)",
-  "fecha": "Date in format YYYY-MM-DD or DD/MM/AAAA (e.g. 2026-10-01)",
-  "turno": "Shift number 1, 2 or 3 (e.g. 2)",
-  "nombre": "Operator full name (e.g. Martín Silva Gómez)",
-  "observaciones": "Handwritten production or quality observations"
+  "centroCostos": "Read the 4 digits handwritten in the C.C. boxes at top-right (starts with 4)",
+  "operacion": "Text handwritten after 'Operación:'",
+  "numeroHerramienta": "Tool number written after 'No. de Herramienta:' (starts with T)",
+  "maquina": "Number (1 to 10) written under 'Máquina'",
+  "husillo": "Checked or written spindle box (1 to 4) under 'Husillo'",
+  "tiempoVidaUtil": "Digits written under 'Tiempo de vida útil'",
+  "fecha": "Date handwritten on the card (format DD/MM/AAAA or YYYY-MM-DD)",
+  "turno": "Shift number (1, 2 or 3) marked under 'Turno'",
+  "nombre": "Operator name handwritten under 'Nombre'",
+  "observaciones": "Any handwritten notes written under 'OBSERVACIONES DE PRODUCCIÓN / CALIDAD'"
 }
 
-IMPORTANT: Return ONLY the JSON object. No explanations, no markdown codeblocks.`;
+Return ONLY the raw JSON object. No explanations.`;
 }
 
 // Extrae el objeto JSON de la respuesta de texto del modelo de visión

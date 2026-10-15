@@ -3,7 +3,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Camera, Upload, RefreshCw, Sparkles, AlertCircle, CheckCircle2, Smartphone, Video, X, Check } from 'lucide-react';
 import { CardType } from '@/types/card';
-import { generateMockCardSvg, SAMPLE_ORANGE_DATA, SAMPLE_GREEN_DATA } from '@/lib/mockData';
 
 interface CameraCaptureProps {
   cardType: CardType;
@@ -24,6 +23,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const nativeCameraInputRef = useRef<HTMLInputElement | null>(null);
+  const guideRef = useRef<HTMLDivElement | null>(null);
   const [guideSize, setGuideSize] = useState<'normal' | 'compact' | 'wide'>('normal');
   const [isAligned, setIsAligned] = useState<boolean>(false);
 
@@ -116,132 +116,170 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     };
   }, [cameraFacing]);
 
-  // Loop ligero en tiempo real: detecta si las 4 esquinas del cartón presentan contraste/marcadores
+  // Loop de detección visual en tiempo real de los 4 marcadores (muestreo a ~8 FPS)
   useEffect(() => {
     if (!streamActive) {
       setIsAligned(false);
       return;
     }
 
-    let animationFrameId: number;
-    let lastCheck = 0;
-    const sampleCanvas = document.createElement('canvas');
-    sampleCanvas.width = 80;
-    sampleCanvas.height = 80;
-    const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+    let isMounted = true;
+    const sampleCanvas = document.createElement("canvas");
+    sampleCanvas.width = 24;
+    sampleCanvas.height = 24;
+    const sampleCtx = sampleCanvas.getContext("2d", { willReadFrequently: true });
 
-    const checkAlignment = (time: number) => {
-      if (time - lastCheck > 180 && videoRef.current && guideBoxRef.current && sampleCtx) {
-        lastCheck = time;
-        try {
-          const video = videoRef.current;
-          if (video.videoWidth > 0 && video.videoHeight > 0) {
-            const videoRect = video.getBoundingClientRect();
-            const guideRect = guideBoxRef.current.getBoundingClientRect();
+    const intervalId = setInterval(() => {
+      if (!isMounted) return;
+      const video = videoRef.current;
+      const guideEl = guideRef.current;
+      if (!video || !guideEl || !sampleCtx || video.readyState < 2) return;
 
-            if (videoRect.width > 0 && videoRect.height > 0) {
-              const scale = Math.max(videoRect.width / video.videoWidth, videoRect.height / video.videoHeight);
-              const renderedW = video.videoWidth * scale;
-              const renderedH = video.videoHeight * scale;
-              const offX = (renderedW - videoRect.width) / 2;
-              const offY = (renderedH - videoRect.height) / 2;
+      const vWidth = video.videoWidth;
+      const vHeight = video.videoHeight;
+      if (!vWidth || !vHeight) return;
 
-              // Analizar 4 puntos de esquina (los 4 cuadros guía)
-              const corners = [
-                { x: guideRect.left + 22, y: guideRect.top + 22 },
-                { x: guideRect.right - 22, y: guideRect.top + 22 },
-                { x: guideRect.left + 22, y: guideRect.bottom - 22 },
-                { x: guideRect.right - 22, y: guideRect.bottom - 22 },
-              ];
+      const guideRect = guideEl.getBoundingClientRect();
+      const videoRect = video.getBoundingClientRect();
+      if (!guideRect.width || !videoRect.width) return;
 
-              let detectedCount = 0;
-              for (const c of corners) {
-                const sx = (c.x - videoRect.left + offX) / scale;
-                const sy = (c.y - videoRect.top + offY) / scale;
+      const videoRatio = vWidth / vHeight;
+      const elemRatio = videoRect.width / videoRect.height;
 
-                if (sx >= 15 && sy >= 15 && sx < video.videoWidth - 15 && sy < video.videoHeight - 15) {
-                  sampleCtx.drawImage(video, sx - 15, sy - 15, 30, 30, 0, 0, 30, 30);
-                  const imgData = sampleCtx.getImageData(0, 0, 30, 30);
-                  const data = imgData.data;
+      let renderedWidth = videoRect.width;
+      let renderedHeight = videoRect.height;
+      let offsetX = 0;
+      let offsetY = 0;
 
-                  let hasDark = false;
-                  let hasLight = false;
-                  for (let i = 0; i < data.length; i += 4) {
-                    const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-                    if (lum < 80) hasDark = true;
-                    if (lum > 130) hasLight = true;
-                    if (hasDark && hasLight) break;
-                  }
-                  if (hasDark && hasLight) {
-                    detectedCount++;
-                  }
-                }
-              }
+      if (elemRatio > videoRatio) {
+        renderedWidth = videoRect.width;
+        renderedHeight = videoRect.width / videoRatio;
+        offsetY = (videoRect.height - renderedHeight) / 2;
+      } else {
+        renderedWidth = videoRect.height * videoRatio;
+        renderedHeight = videoRect.height;
+        offsetX = (videoRect.width - renderedWidth) / 2;
+      }
 
-              // Si al menos 3 de las 4 esquinas tienen patrón de alto contraste, dar encuadre válido
-              setIsAligned(detectedCount >= 3);
-            }
+      const scaleX = vWidth / renderedWidth;
+      const scaleY = vHeight / renderedHeight;
+
+      // 4 esquinas del cuadro guía en coordenadas del video
+      const corners = [
+        { x: guideRect.left + 16, y: guideRect.top + 16 }, // Top-Left
+        { x: guideRect.right - 16, y: guideRect.top + 16 }, // Top-Right
+        { x: guideRect.left + 16, y: guideRect.bottom - 16 }, // Bottom-Left
+        { x: guideRect.right - 16, y: guideRect.bottom - 16 }, // Bottom-Right
+      ];
+
+      const boxSize = Math.max(16, Math.round(28 * scaleX));
+      let detectedCount = 0;
+
+      for (const pt of corners) {
+        const vx = (pt.x - videoRect.left - offsetX) * scaleX;
+        const vy = (pt.y - videoRect.top - offsetY) * scaleY;
+
+        const sx = Math.max(0, Math.min(vWidth - boxSize, Math.round(vx - boxSize / 2)));
+        const sy = Math.max(0, Math.min(vHeight - boxSize, Math.round(vy - boxSize / 2)));
+
+        sampleCtx.drawImage(video, sx, sy, boxSize, boxSize, 0, 0, 24, 24);
+        const imgData = sampleCtx.getImageData(0, 0, 24, 24);
+        const data = imgData.data;
+
+        let darkPixels = 0;
+        let cardPixels = 0;
+        const total = 24 * 24;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+          if (lum < 75 || (r < 80 && g < 80 && b < 80)) {
+            darkPixels++;
           }
-        } catch {
-          // Ignorar errores de context
+          if (cardType === "naranja") {
+            if (r > 110 && g > 45 && r > b * 1.3) cardPixels++;
+          } else {
+            if (g > 75 && g > b && g > r * 0.95) cardPixels++;
+          }
+        }
+
+        const darkRatio = darkPixels / total;
+        const cardRatio = cardPixels / total;
+        if ((darkRatio >= 0.05 && darkRatio <= 0.75) || (darkRatio >= 0.03 && cardRatio >= 0.15)) {
+          detectedCount++;
         }
       }
-      animationFrameId = requestAnimationFrame(checkAlignment);
+
+      const allAligned = detectedCount === 4;
+      setIsAligned((prev) => (prev !== allAligned ? allAligned : prev));
+    }, 130);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
     };
+  }, [streamActive, cardType]);
 
-    animationFrameId = requestAnimationFrame(checkAlignment);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [streamActive]);
-
-  // Capturar frame actual del video RECORTADO exactamente a los 4 cuadros guía
+  // Capturar frame actual del video a Canvas proyectando exactamente lo que está dentro del marco guía
   const takeSnapshot = () => {
     const video = videoRef.current;
     if (!video) return;
 
-    const videoWidth = video.videoWidth || 1920;
-    const videoHeight = video.videoHeight || 1080;
-    const videoRect = video.getBoundingClientRect();
-    const guideRect = guideBoxRef.current?.getBoundingClientRect();
+    const vWidth = video.videoWidth || 1280;
+    const vHeight = video.videoHeight || 720;
+    const guideEl = guideRef.current;
 
     const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    if (guideRect && videoRect.width > 0 && videoRect.height > 0) {
-      // Compensar la escala y desplazamiento de object-fit: cover
-      const scale = Math.max(videoRect.width / videoWidth, videoRect.height / videoHeight);
-      const renderedWidth = videoWidth * scale;
-      const renderedHeight = videoHeight * scale;
+    if (guideEl) {
+      const guideRect = guideEl.getBoundingClientRect();
+      const videoRect = video.getBoundingClientRect();
 
-      const offsetX = (renderedWidth - videoRect.width) / 2;
-      const offsetY = (renderedHeight - videoRect.height) / 2;
+      const videoRatio = vWidth / vHeight;
+      const elemRatio = videoRect.width / videoRect.height;
 
-      // Coordenadas exactas en el espacio original del sensor de la cámara
-      const sourceX = Math.max(0, (guideRect.left - videoRect.left + offsetX) / scale);
-      const sourceY = Math.max(0, (guideRect.top - videoRect.top + offsetY) / scale);
-      const sourceWidth = Math.min(videoWidth - sourceX, guideRect.width / scale);
-      const sourceHeight = Math.min(videoHeight - sourceY, guideRect.height / scale);
+      let renderedWidth = videoRect.width;
+      let renderedHeight = videoRect.height;
+      let offsetX = 0;
+      let offsetY = 0;
 
-      canvas.width = Math.round(sourceWidth);
-      canvas.height = Math.round(sourceHeight);
+      if (elemRatio > videoRatio) {
+        renderedWidth = videoRect.width;
+        renderedHeight = videoRect.width / videoRatio;
+        offsetY = (videoRect.height - renderedHeight) / 2;
+      } else {
+        renderedWidth = videoRect.height * videoRatio;
+        renderedHeight = videoRect.height;
+        offsetX = (videoRect.width - renderedWidth) / 2;
+      }
 
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      ctx.drawImage(
-        video,
-        sourceX,
-        sourceY,
-        sourceWidth,
-        sourceHeight,
-        0,
-        0,
-        canvas.width,
-        canvas.height
-      );
+      const scaleX = vWidth / renderedWidth;
+      const scaleY = vHeight / renderedHeight;
+
+      const guideX = guideRect.left - videoRect.left - offsetX;
+      const guideY = guideRect.top - videoRect.top - offsetY;
+
+      // Margen mínimo del 1% para asegurar que los bordes del cartón queden completos sin recortar marcas
+      const margin = 0.01;
+      const mX = guideRect.width * margin;
+      const mY = guideRect.height * margin;
+
+      const cropX = Math.max(0, Math.round((guideX - mX) * scaleX));
+      const cropY = Math.max(0, Math.round((guideY - mY) * scaleY));
+      const cropW = Math.min(vWidth - cropX, Math.round((guideRect.width + mX * 2) * scaleX));
+      const cropH = Math.min(vHeight - cropY, Math.round((guideRect.height + mY * 2) * scaleY));
+
+      canvas.width = cropW;
+      canvas.height = cropH;
+      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
     } else {
-      // Fallback
-      canvas.width = videoWidth;
-      canvas.height = videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      canvas.width = vWidth;
+      canvas.height = vHeight;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     }
 
@@ -261,14 +299,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       onImageSelected(dataUrl, true);
     };
     reader.readAsDataURL(file);
-  };
-
-  // Cargar cartón sintético de prueba
-  const handleLoadSample = (sampleType: CardType) => {
-    const data = sampleType === 'naranja' ? SAMPLE_ORANGE_DATA : SAMPLE_GREEN_DATA;
-    const sampleSvg = generateMockCardSvg(sampleType, data);
-    stopCamera();
-    onImageSelected(sampleSvg, true);
   };
 
   const isOrange = cardType === 'naranja';
@@ -339,7 +369,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                   isAligned ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'
                 }`}
               />
-              <span>{isAligned ? '✓ ¡4 Marcadores Alineados!' : 'Buscando 4 Marcadores...'}</span>
+              <span>{isAligned ? '¡Encuadre Correcto! Listo para disparar' : 'Buscando 4 Marcadores...'}</span>
             </div>
 
             <button
@@ -351,124 +381,92 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             </button>
           </div>
 
-          {/* Centro: Marco Guía para el Cartón (Centrado en el área visible entre barra superior e inferior) */}
-          <div className="absolute inset-x-0 top-16 bottom-28 flex items-center justify-center pointer-events-none z-20">
+          {/* Centro: Marco Guía para el Cartón (Centrado absoluto con proyección 1:1) */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
             <div
-              ref={guideBoxRef}
-              className={`relative ${guideWidthClass} aspect-[1/1.52] flex flex-col justify-between transition-all duration-200`}
+              ref={guideRef}
+              className={`relative ${guideWidthClass} aspect-[1/1.5] flex flex-col justify-between transition-all duration-200`}
             >
-              {/* Marco perimetral punteado */}
+              {/* Recuadro punteado con esquinas de alta precisión (Amarillo ➔ Verde) */}
               <div
                 className={`absolute inset-0 border-2 border-dashed rounded-2xl pointer-events-none transition-all duration-300 ${
                   isAligned
-                    ? 'border-emerald-400/90 shadow-[0_0_30px_rgba(52,211,153,0.4)]'
-                    : 'border-amber-400/80 shadow-[0_0_20px_rgba(245,158,11,0.25)]'
+                    ? "border-emerald-400/90 bg-emerald-500/10 shadow-[0_0_35px_rgba(52,211,153,0.45)]"
+                    : "border-amber-400/90 shadow-[0_0_30px_rgba(245,158,11,0.35)]"
                 }`}
               />
 
-              {/* 1. CUADRO GUÍA: ESQUINA SUPERIOR IZQUIERDA (Top-Left) */}
-              <div
-                className={`absolute top-1 left-1 w-11 h-11 border-2 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                  isAligned
-                    ? 'border-emerald-400 bg-emerald-500/30 text-emerald-300 shadow-[0_0_20px_rgba(52,211,153,0.8)] scale-110'
-                    : 'border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.6)]'
-                }`}
-              >
-                {/* Cuadro concéntrico central que simula el marcador físico */}
+              {/* 4 Esquinas de Enfoque con Mirillas (Amarillo ➔ Verde) */}
+              <div className="relative flex justify-between z-10 -m-1">
                 <div
-                  className={`w-3.5 h-3.5 border-2 rounded-sm flex items-center justify-center ${
-                    isAligned ? 'border-emerald-300 bg-emerald-400/20' : 'border-amber-300 bg-amber-400/20'
+                  className={`relative w-12 h-12 border-t-4 border-l-4 rounded-tl-xl shadow-lg flex items-start justify-start p-1 transition-colors duration-300 ${
+                    isAligned ? "border-emerald-400 bg-emerald-500/20" : "border-amber-400"
                   }`}
                 >
-                  <div className={`w-1.5 h-1.5 rounded-xs ${isAligned ? 'bg-emerald-300' : 'bg-amber-300'}`} />
+                  <div
+                    className={`w-4 h-4 border rounded-sm flex items-center justify-center transition-colors duration-300 ${
+                      isAligned ? "border-emerald-300 bg-emerald-400/40" : "border-amber-300 bg-amber-400/40"
+                    }`}
+                  >
+                    <div className={`w-1.5 h-1.5 rounded-full ${isAligned ? "bg-emerald-400 animate-ping" : "bg-amber-400"}`} />
+                  </div>
                 </div>
-                <span
-                  className={`absolute -top-3.5 left-0 px-1 py-0.2 text-[9px] font-black font-mono rounded shadow ${
-                    isAligned
-                      ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/60'
-                      : 'bg-black/90 text-amber-300 border border-amber-500/40'
+                <div
+                  className={`relative w-12 h-12 border-t-4 border-r-4 rounded-tr-xl shadow-lg flex items-start justify-end p-1 transition-colors duration-300 ${
+                    isAligned ? "border-emerald-400 bg-emerald-500/20" : "border-amber-400"
                   }`}
                 >
-                  1
-                </span>
+                  <div
+                    className={`w-4 h-4 border rounded-sm flex items-center justify-center transition-colors duration-300 ${
+                      isAligned ? "border-emerald-300 bg-emerald-400/40" : "border-amber-300 bg-amber-400/40"
+                    }`}
+                  >
+                    <div className={`w-1.5 h-1.5 rounded-full ${isAligned ? "bg-emerald-400 animate-ping" : "bg-amber-400"}`} />
+                  </div>
+                </div>
               </div>
 
-              {/* 2. CUADRO GUÍA: ESQUINA SUPERIOR DERECHA (Top-Right) */}
-              <div
-                className={`absolute top-1 right-1 w-11 h-11 border-2 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                  isAligned
-                    ? 'border-emerald-400 bg-emerald-500/30 text-emerald-300 shadow-[0_0_20px_rgba(52,211,153,0.8)] scale-110'
-                    : 'border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.6)]'
-                }`}
-              >
-                <div
-                  className={`w-3.5 h-3.5 border-2 rounded-sm flex items-center justify-center ${
-                    isAligned ? 'border-emerald-300 bg-emerald-400/20' : 'border-amber-300 bg-amber-400/20'
-                  }`}
-                >
-                  <div className={`w-1.5 h-1.5 rounded-xs ${isAligned ? 'bg-emerald-300' : 'bg-amber-300'}`} />
-                </div>
+              {/* Indicador central de alineación */}
+              <div className="flex flex-col items-center justify-center space-y-1 opacity-70">
+                <div className={`w-10 h-0.5 ${isAligned ? "bg-emerald-400/60" : "bg-amber-400/50"}`} />
                 <span
-                  className={`absolute -top-3.5 right-0 px-1 py-0.2 text-[9px] font-black font-mono rounded shadow ${
-                    isAligned
-                      ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/60'
-                      : 'bg-black/90 text-amber-300 border border-amber-500/40'
+                  className={`text-[10px] uppercase tracking-widest font-mono px-2 py-0.5 rounded transition-colors duration-300 ${
+                    isAligned ? "text-emerald-300 bg-emerald-950/80 border border-emerald-500/40" : "text-amber-300 bg-black/60"
                   }`}
                 >
-                  2
+                  ZONA DE DATOS HSK 63
                 </span>
+                <div className={`w-10 h-0.5 ${isAligned ? "bg-emerald-400/60" : "bg-amber-400/50"}`} />
               </div>
 
-              {/* 3. CUADRO GUÍA: ESQUINA INFERIOR IZQUIERDA (Bottom-Left) */}
-              <div
-                className={`absolute bottom-1 left-1 w-11 h-11 border-2 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                  isAligned
-                    ? 'border-emerald-400 bg-emerald-500/30 text-emerald-300 shadow-[0_0_20px_rgba(52,211,153,0.8)] scale-110'
-                    : 'border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.6)]'
-                }`}
-              >
+              {/* Esquinas Inferiores con Mirillas */}
+              <div className="relative flex justify-between z-10 -m-1">
                 <div
-                  className={`w-3.5 h-3.5 border-2 rounded-sm flex items-center justify-center ${
-                    isAligned ? 'border-emerald-300 bg-emerald-400/20' : 'border-amber-300 bg-amber-400/20'
+                  className={`relative w-12 h-12 border-b-4 border-l-4 rounded-bl-xl shadow-lg flex items-end justify-start p-1 transition-colors duration-300 ${
+                    isAligned ? "border-emerald-400 bg-emerald-500/20" : "border-amber-400"
                   }`}
                 >
-                  <div className={`w-1.5 h-1.5 rounded-xs ${isAligned ? 'bg-emerald-300' : 'bg-amber-300'}`} />
+                  <div
+                    className={`w-4 h-4 border rounded-sm flex items-center justify-center transition-colors duration-300 ${
+                      isAligned ? "border-emerald-300 bg-emerald-400/40" : "border-amber-300 bg-amber-400/40"
+                    }`}
+                  >
+                    <div className={`w-1.5 h-1.5 rounded-full ${isAligned ? "bg-emerald-400 animate-ping" : "bg-amber-400"}`} />
+                  </div>
                 </div>
-                <span
-                  className={`absolute -bottom-3.5 left-0 px-1 py-0.2 text-[9px] font-black font-mono rounded shadow ${
-                    isAligned
-                      ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/60'
-                      : 'bg-black/90 text-amber-300 border border-amber-500/40'
-                  }`}
-                >
-                  3
-                </span>
-              </div>
-
-              {/* 4. CUADRO GUÍA: ESQUINA INFERIOR DERECHA (Bottom-Right) */}
-              <div
-                className={`absolute bottom-1 right-1 w-11 h-11 border-2 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                  isAligned
-                    ? 'border-emerald-400 bg-emerald-500/30 text-emerald-300 shadow-[0_0_20px_rgba(52,211,153,0.8)] scale-110'
-                    : 'border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.6)]'
-                }`}
-              >
                 <div
-                  className={`w-3.5 h-3.5 border-2 rounded-sm flex items-center justify-center ${
-                    isAligned ? 'border-emerald-300 bg-emerald-400/20' : 'border-amber-300 bg-amber-400/20'
+                  className={`relative w-12 h-12 border-b-4 border-r-4 rounded-br-xl shadow-lg flex items-end justify-end p-1 transition-colors duration-300 ${
+                    isAligned ? "border-emerald-400 bg-emerald-500/20" : "border-amber-400"
                   }`}
                 >
-                  <div className={`w-1.5 h-1.5 rounded-xs ${isAligned ? 'bg-emerald-300' : 'bg-amber-300'}`} />
+                  <div
+                    className={`w-4 h-4 border rounded-sm flex items-center justify-center transition-colors duration-300 ${
+                      isAligned ? "border-emerald-300 bg-emerald-400/40" : "border-amber-300 bg-amber-400/40"
+                    }`}
+                  >
+                    <div className={`w-1.5 h-1.5 rounded-full ${isAligned ? "bg-emerald-400 animate-ping" : "bg-amber-400"}`} />
+                  </div>
                 </div>
-                <span
-                  className={`absolute -bottom-3.5 right-0 px-1 py-0.2 text-[9px] font-black font-mono rounded shadow ${
-                    isAligned
-                      ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/60'
-                      : 'bg-black/90 text-amber-300 border border-amber-500/40'
-                  }`}
-                >
-                  4
-                </span>
               </div>
             </div>
           </div>
@@ -483,7 +481,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               }`}
             >
               {isAligned
-                ? '✓ ¡4 Marcadores Dentro! Listo para disparar'
+                ? '¡Encuadre Correcto! Listo para disparar'
                 : 'Mete los 4 cuadros negros del cartón dentro de las 4 esquinas 1, 2, 3 y 4'}
             </div>
 
@@ -590,14 +588,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               </button>
             </div>
 
-            {/* Inputs ocultos */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
+            {/* Inputs ocultos necesarios para la cámara nativa del celular o explorador de archivos */}
             <input
               ref={nativeCameraInputRef}
               type="file"
@@ -606,18 +597,23 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               onChange={handleFileUpload}
               className="hidden"
             />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+          </div>
+        </div>
 
-            {/* Opción de Muestra Sintética */}
-            <div className="mt-5 pt-3 border-t border-slate-800/80 w-full flex items-center justify-between text-[11px] text-slate-500">
-              <span>¿No tienes cámara a mano?</span>
-              <button
-                onClick={() => handleLoadSample(cardType)}
-                className="text-blue-400 hover:text-blue-300 font-bold transition flex items-center space-x-1"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Cargar Muestra Sintética</span>
-              </button>
-            </div>
+        {/* Información de Captura Real */}
+        <div className="mt-3 sm:mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+          <div className="flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+            <span className="text-[11px] sm:text-xs">
+              Modo Real: Toma foto con la cámara o selecciona una imagen de tu galería para procesarla con Ollama LLaVA.
+            </span>
           </div>
         </div>
       </div>
