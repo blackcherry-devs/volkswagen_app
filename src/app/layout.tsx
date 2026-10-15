@@ -30,19 +30,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               (function() {
                 try {
                   if (typeof window !== 'undefined') {
-                    if (typeof window.ethereum === 'undefined') {
-                      window.ethereum = { selectedAddress: undefined };
-                    } else if (window.ethereum && typeof window.ethereum === 'object' && !('selectedAddress' in window.ethereum)) {
-                      window.ethereum.selectedAddress = undefined;
-                    }
-                    var origOnError = window.onerror;
-                    window.onerror = function(msg) {
-                      if (typeof msg === 'string' && (msg.indexOf('ethereum') !== -1 || msg.indexOf('selectedAddress') !== -1)) {
-                        return true;
-                      }
-                      if (origOnError) return origOnError.apply(this, arguments);
-                      return false;
-                    };
                     window.addEventListener('error', function(e) {
                       if (e && e.message && (e.message.indexOf('ethereum') !== -1 || e.message.indexOf('selectedAddress') !== -1)) {
                         e.preventDefault();

@@ -478,7 +478,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setSelectedCardType('naranja')}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer touch-manipulation active:scale-95 ${
                     selectedCardType === 'naranja'
                       ? 'bg-orange-500 text-white shadow ring-2 ring-orange-400/50'
                       : 'bg-slate-800 text-slate-300 hover:text-orange-300'
@@ -492,7 +492,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setSelectedCardType('verde')}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer touch-manipulation active:scale-95 ${
                     selectedCardType === 'verde'
                       ? 'bg-emerald-600 text-white shadow ring-2 ring-emerald-400/50'
                       : 'bg-slate-800 text-slate-300 hover:text-emerald-300'

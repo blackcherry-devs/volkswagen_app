@@ -160,49 +160,66 @@ function buildOcrPrompt(cardType: string): string {
   const isOrange = cardType === 'naranja';
 
   if (isOrange) {
-    return `You are a high-precision OCR system for Volkswagen de México factory cards.
-Look at this HSK 63 Orange Tool Control Card (Cartoncillo Naranja de Desmontaje).
-Read ONLY the real handwritten ballpoint pen text and printed characters physically present on the card.
-DO NOT use placeholder names, sample numbers or fictitious data.
-If a field is empty, not filled or not legible, set its value strictly to "".
+    return `You are an expert industrial handwriting OCR transcription system for Volkswagen de México factory cards.
+Carefully examine this cropped HSK 63 Orange Tool Control Card (Cartoncillo Naranja de Desmontaje) strictly in visual order from top to bottom:
+
+1. Top-Right: 'C.C.' has 4 numbered boxes. Read the 4 handwritten digits (typically starts with 4, e.g., 4001).
+2. 'Operación:': Read the handwritten text or digits written on the underline after 'Operación:' (e.g., 20).
+3. 'No. de Herramienta:': Read the tool ID after the 'T' box (e.g., T-3167 or 3167).
+4. 'Máquina (1-10):': Read the single machine number written on the line.
+5. 'Husillo (1-4)': Look at boxes 1, 2, 3, 4. Identify which box number is marked with an X or crossed out (return '1', '2', '3', or '4').
+6. 'Tiempo de vida útil logrado:': Read the number of pieces written on the line.
+7. 'MOTIVO DE DESMONTAJE (MARCAR CON X)': Identify which of the 12 reasons is marked with an X: Rotura, Formación de rebaba, Rugosidad alta, Rugosidad baja, Diámetro grande, Diámetro pequeño, Ángulo de especificación, Forma fuera de especificación, Despostilladura, Análisis de herramientas necesario, Fallo de operador, Fallo de máquina.
+8. 'OBSERVACIONES / DETALLES DE FALLA:': Read the handwritten text inside the white box.
+9. 'Fecha:': Read the handwritten date (format YYYY/MM/DD or DD/MM/YYYY).
+10. 'Turno:': Look at boxes 1, 2, 3. Identify which shift box number has an X (return '1', '2', or '3').
+11. 'Nombre del Operador:': Read the full handwritten person name written on the line.
 
 Transcribe the fields into a valid JSON object with these exact keys:
 {
-  "centroCostos": "Read the 4 digits handwritten in the C.C. boxes at top-right (starts with 4)",
-  "operacion": "Text handwritten after 'Operación:'",
-  "numeroHerramienta": "Tool number written after 'No. de Herramienta:' (starts with T)",
-  "maquina": "Number (1 to 10) written under 'Máquina'",
-  "husillo": "Checked or written spindle box (1 to 4) under 'Husillo'",
-  "tiempoVidaUtil": "Digits written under 'Tiempo de vida útil logrado'",
-  "fecha": "Date handwritten on the card (format DD/MM/AAAA or YYYY-MM-DD)",
-  "turno": "Shift number (1, 2 or 3) marked under 'Turno'",
-  "nombre": "Operator name handwritten under 'Nombre del Operador'",
-  "motivoDesmontaje": "Reason marked with an X among: Rotura, Formación de rebaba, Rugosidad alta, Rugosidad baja, Diámetro grande, Diámetro pequeño, Ángulo de especificación, Forma fuera de especificación, Despostilladura, Análisis de herramientas necesario, Fallo de operador, Fallo de máquina",
-  "observaciones": "Any handwritten notes written under 'OBSERVACIONES / DETALLES DE FALLA'"
+  "centroCostos": "",
+  "operacion": "",
+  "numeroHerramienta": "",
+  "maquina": "",
+  "husillo": "",
+  "tiempoVidaUtil": "",
+  "motivoDesmontaje": "",
+  "observaciones": "",
+  "fecha": "",
+  "turno": "",
+  "nombre": ""
 }
 
 Return ONLY the raw JSON object. No explanations.`;
   }
 
   // Tarjeta Verde (Inicial / Seguimiento)
-  return `You are a high-precision OCR system for Volkswagen de México factory cards.
-Look at this HSK 63 Green Tool Control Card (Cartoncillo Verde Inicial / Seguimiento).
-Read ONLY the real handwritten ballpoint pen text and printed characters physically present on the card.
-DO NOT use placeholder names, sample numbers or fictitious data.
-If a field is empty, not filled or not legible, set its value strictly to "".
+  return `You are an expert industrial handwriting OCR transcription system for Volkswagen de México factory cards.
+Carefully examine this cropped HSK 63 Green Tool Control Card (Cartoncillo Verde Inicial / Seguimiento) strictly in visual order from top to bottom:
+
+1. Top-Right: 'C.C.' has 4 numbered boxes. Read the 4 handwritten digits (typically starts with 4, e.g., 4001).
+2. 'Operación:': Read the handwritten text or digits written on the underline after 'Operación:' (e.g., 20).
+3. 'No. de Herramienta:': Read the tool ID after the 'T' box (e.g., T-3167 or 3167).
+4. 'Máquina (1-10):': Read the single machine number written on the line.
+5. 'Husillo (1-4)': Look at boxes 1, 2, 3, 4. Identify which box number is marked with an X or crossed out (return '1', '2', '3', or '4').
+6. 'Tiempo de vida útil:': Read the number of pieces written on the line.
+7. 'OBSERVACIONES DE PRODUCCIÓN / CALIDAD:': Read the handwritten text inside the white box.
+8. 'Fecha:': Read the handwritten date (format YYYY/MM/DD or DD/MM/YYYY).
+9. 'Turno:': Look at boxes 1, 2, 3. Identify which shift box number has an X (return '1', '2', or '3').
+10. 'Nombre del Operador:': Read the full handwritten person name written on the line.
 
 Transcribe the fields into a valid JSON object with these exact keys:
 {
-  "centroCostos": "Read the 4 digits handwritten in the C.C. boxes at top-right (starts with 4)",
-  "operacion": "Text handwritten after 'Operación:'",
-  "numeroHerramienta": "Tool number written after 'No. de Herramienta:' (starts with T)",
-  "maquina": "Number (1 to 10) written under 'Máquina'",
-  "husillo": "Checked or written spindle box (1 to 4) under 'Husillo'",
-  "tiempoVidaUtil": "Digits written under 'Tiempo de vida útil'",
-  "fecha": "Date handwritten on the card (format DD/MM/AAAA or YYYY-MM-DD)",
-  "turno": "Shift number (1, 2 or 3) marked under 'Turno'",
-  "nombre": "Operator name handwritten under 'Nombre'",
-  "observaciones": "Any handwritten notes written under 'OBSERVACIONES DE PRODUCCIÓN / CALIDAD'"
+  "centroCostos": "",
+  "operacion": "",
+  "numeroHerramienta": "",
+  "maquina": "",
+  "husillo": "",
+  "tiempoVidaUtil": "",
+  "observaciones": "",
+  "fecha": "",
+  "turno": "",
+  "nombre": ""
 }
 
 Return ONLY the raw JSON object. No explanations.`;
@@ -270,31 +287,64 @@ function parseOcrResponse(rawText: string, cardType: string): any {
   const ccDigits = cc.replace(/\D/g, '');
   if (ccDigits.length === 4 && ccDigits.startsWith('4')) {
     cc = ccDigits;
+  } else if (ccDigits.length > 0 && ccDigits.startsWith('4')) {
+    cc = ccDigits.padEnd(4, '0');
   }
 
+  // Operación: limpiar prefijos como 'Operación:'
+  let operacion = cleanStr(parsed.operacion || parsed['operación']).replace(/^operaci[oó]n:?\s*/i, '');
+
   // No. Herramienta: asegurar formato T-XXXXX
-  let numHerramienta = cleanStr(parsed.numeroHerramienta || parsed['herramienta']);
+  let numHerramienta = cleanStr(parsed.numeroHerramienta || parsed['herramienta']).replace(/^no\.?\s*(?:de\s*)?herramienta:?\s*/i, '');
   if (/^\d+$/.test(numHerramienta)) {
     numHerramienta = `T-${numHerramienta}`;
   }
 
+  // Máquina: extraer número del 1 al 10
+  let maquina = cleanStr(parsed.maquina || parsed['máquina']);
+  const maqMatch = maquina.match(/\b(10|[1-9])\b/);
+  if (maqMatch) maquina = maqMatch[1];
+
+  // Husillo: extraer dígito del 1 al 4
+  let husillo = cleanStr(parsed.husillo);
+  const husMatch = husillo.match(/[1-4]/);
+  if (husMatch) husillo = husMatch[0];
+
+  // Turno: extraer dígito del 1 al 3
+  let turno = cleanStr(parsed.turno);
+  const turnoMatch = turno.match(/[1-3]/);
+  if (turnoMatch) turno = turnoMatch[0];
+
   const result: any = {
     centroCostos: cc,
-    operacion: cleanStr(parsed.operacion || parsed['operación']),
+    operacion,
     numeroHerramienta: numHerramienta,
-    maquina: cleanStr(parsed.maquina || parsed['máquina']),
-    husillo: cleanStr(parsed.husillo),
+    maquina,
+    husillo,
     tiempoVidaUtil: cleanStr(parsed.tiempoVidaUtil || parsed['vidaUtil']).replace(/\D/g, ''),
     fecha: cleanStr(parsed.fecha),
-    turno: cleanStr(parsed.turno).replace(/\D/g, ''),
+    turno,
     nombre: cleanStr(parsed.nombre || parsed['operador']),
     observaciones: cleanStr(parsed.observaciones),
   };
 
   if (cardType === 'naranja') {
-    result.motivoDesmontaje = cleanStr(
+    const rawMotivo = cleanStr(
       parsed.motivoDesmontaje || parsed['motivo'] || parsed['motivo_desmontaje'] || ''
+    ).toLowerCase();
+
+    const MOTIVOS_LIST = [
+      'Rotura', 'Formación de rebaba', 'Rugosidad alta', 'Rugosidad baja',
+      'Diámetro grande', 'Diámetro pequeño', 'Ángulo de especificación',
+      'Forma fuera de especificación', 'Despostilladura',
+      'Análisis de herramientas necesario', 'Fallo de operador', 'Fallo de máquina'
+    ];
+
+    const matchedMotivo = MOTIVOS_LIST.find((m) =>
+      rawMotivo.includes(m.toLowerCase()) || m.toLowerCase().includes(rawMotivo)
     );
+
+    result.motivoDesmontaje = matchedMotivo || cleanStr(parsed.motivoDesmontaje);
   }
 
   return result;

@@ -3,6 +3,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Camera, Upload, RefreshCw, Sparkles, AlertCircle, CheckCircle2, Smartphone, Video, X, Check } from 'lucide-react';
 import { CardType } from '@/types/card';
+import { detectCardCorners, warpAndCropCard } from '@/lib/cornerDetection';
 
 interface CameraCaptureProps {
   cardType: CardType;
@@ -116,7 +117,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     };
   }, [cameraFacing]);
 
-  // Loop de detección visual en tiempo real de los 4 marcadores (muestreo a ~8 FPS)
+  // Loop ligero con requestAnimationFrame que analiza cada ~180ms las 4 esquinas del video
   useEffect(() => {
     if (!streamActive) {
       setIsAligned(false);
@@ -124,102 +125,122 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     }
 
     let isMounted = true;
+    let animId: number;
+    let lastCheck = 0;
+
     const sampleCanvas = document.createElement("canvas");
     sampleCanvas.width = 24;
     sampleCanvas.height = 24;
     const sampleCtx = sampleCanvas.getContext("2d", { willReadFrequently: true });
 
-    const intervalId = setInterval(() => {
+    const checkFrame = (timestamp: number) => {
       if (!isMounted) return;
-      const video = videoRef.current;
-      const guideEl = guideRef.current;
-      if (!video || !guideEl || !sampleCtx || video.readyState < 2) return;
 
-      const vWidth = video.videoWidth;
-      const vHeight = video.videoHeight;
-      if (!vWidth || !vHeight) return;
+      if (timestamp - lastCheck >= 180) {
+        lastCheck = timestamp;
 
-      const guideRect = guideEl.getBoundingClientRect();
-      const videoRect = video.getBoundingClientRect();
-      if (!guideRect.width || !videoRect.width) return;
+        const video = videoRef.current;
+        const guideEl = guideBoxRef.current || guideRef.current;
+        if (video && guideEl && sampleCtx && video.readyState >= 2) {
+          const vWidth = video.videoWidth;
+          const vHeight = video.videoHeight;
 
-      const videoRatio = vWidth / vHeight;
-      const elemRatio = videoRect.width / videoRect.height;
+          if (vWidth && vHeight) {
+            const guideRect = guideEl.getBoundingClientRect();
+            const videoRect = video.getBoundingClientRect();
 
-      let renderedWidth = videoRect.width;
-      let renderedHeight = videoRect.height;
-      let offsetX = 0;
-      let offsetY = 0;
+            if (guideRect.width && videoRect.width) {
+              const videoRatio = vWidth / vHeight;
+              const elemRatio = videoRect.width / videoRect.height;
 
-      if (elemRatio > videoRatio) {
-        renderedWidth = videoRect.width;
-        renderedHeight = videoRect.width / videoRatio;
-        offsetY = (videoRect.height - renderedHeight) / 2;
-      } else {
-        renderedWidth = videoRect.height * videoRatio;
-        renderedHeight = videoRect.height;
-        offsetX = (videoRect.width - renderedWidth) / 2;
-      }
+              let renderedWidth = videoRect.width;
+              let renderedHeight = videoRect.height;
+              let offsetX = 0;
+              let offsetY = 0;
 
-      const scaleX = vWidth / renderedWidth;
-      const scaleY = vHeight / renderedHeight;
+              if (elemRatio > videoRatio) {
+                renderedWidth = videoRect.width;
+                renderedHeight = videoRect.width / videoRatio;
+                offsetY = (videoRect.height - renderedHeight) / 2;
+              } else {
+                renderedWidth = videoRect.height * videoRatio;
+                renderedHeight = videoRect.height;
+                offsetX = (videoRect.width - renderedWidth) / 2;
+              }
 
-      // 4 esquinas del cuadro guía en coordenadas del video
-      const corners = [
-        { x: guideRect.left + 16, y: guideRect.top + 16 }, // Top-Left
-        { x: guideRect.right - 16, y: guideRect.top + 16 }, // Top-Right
-        { x: guideRect.left + 16, y: guideRect.bottom - 16 }, // Bottom-Left
-        { x: guideRect.right - 16, y: guideRect.bottom - 16 }, // Bottom-Right
-      ];
+              const scaleX = vWidth / renderedWidth;
+              const scaleY = vHeight / renderedHeight;
 
-      const boxSize = Math.max(16, Math.round(28 * scaleX));
-      let detectedCount = 0;
+              // Centros de las 4 cajas guía de 44x44 px (offset de ~22px desde las esquinas del marco)
+              const offsetPx = 22;
+              const corners = [
+                { x: guideRect.left + offsetPx, y: guideRect.top + offsetPx }, // 1: Top-Left
+                { x: guideRect.right - offsetPx, y: guideRect.top + offsetPx }, // 2: Top-Right
+                { x: guideRect.left + offsetPx, y: guideRect.bottom - offsetPx }, // 3: Bottom-Left
+                { x: guideRect.right - offsetPx, y: guideRect.bottom - offsetPx }, // 4: Bottom-Right
+              ];
 
-      for (const pt of corners) {
-        const vx = (pt.x - videoRect.left - offsetX) * scaleX;
-        const vy = (pt.y - videoRect.top - offsetY) * scaleY;
+              const boxSize = Math.max(16, Math.round(36 * scaleX));
+              let detectedCount = 0;
 
-        const sx = Math.max(0, Math.min(vWidth - boxSize, Math.round(vx - boxSize / 2)));
-        const sy = Math.max(0, Math.min(vHeight - boxSize, Math.round(vy - boxSize / 2)));
+              for (const pt of corners) {
+                const vx = (pt.x - videoRect.left - offsetX) * scaleX;
+                const vy = (pt.y - videoRect.top - offsetY) * scaleY;
 
-        sampleCtx.drawImage(video, sx, sy, boxSize, boxSize, 0, 0, 24, 24);
-        const imgData = sampleCtx.getImageData(0, 0, 24, 24);
-        const data = imgData.data;
+                const sx = Math.max(0, Math.min(vWidth - boxSize, Math.round(vx - boxSize / 2)));
+                const sy = Math.max(0, Math.min(vHeight - boxSize, Math.round(vy - boxSize / 2)));
 
-        let darkPixels = 0;
-        let cardPixels = 0;
-        const total = 24 * 24;
+                sampleCtx.drawImage(video, sx, sy, boxSize, boxSize, 0, 0, 24, 24);
+                const imgData = sampleCtx.getImageData(0, 0, 24, 24);
+                const data = imgData.data;
 
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
-          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+                let darkPixels = 0;
+                let brightOrCardPixels = 0;
+                const total = 24 * 24;
 
-          if (lum < 75 || (r < 80 && g < 80 && b < 80)) {
-            darkPixels++;
-          }
-          if (cardType === "naranja") {
-            if (r > 110 && g > 45 && r > b * 1.3) cardPixels++;
-          } else {
-            if (g > 75 && g > b && g > r * 0.95) cardPixels++;
+                for (let i = 0; i < data.length; i += 4) {
+                  const r = data[i];
+                  const g = data[i + 1];
+                  const b = data[i + 2];
+                  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+                  // Píxel oscuro (marcador negro / tinta)
+                  if (lum < 75 || (r < 80 && g < 80 && b < 80)) {
+                    darkPixels++;
+                  }
+                  // Fondo claro o color industrial del cartoncillo
+                  if (cardType === "naranja") {
+                    if (r > 105 && g > 45 && r > b * 1.25) brightOrCardPixels++;
+                    else if (lum > 130) brightOrCardPixels++;
+                  } else {
+                    if (g > 70 && g > b && g > r * 0.95) brightOrCardPixels++;
+                    else if (lum > 130) brightOrCardPixels++;
+                  }
+                }
+
+                const darkRatio = darkPixels / total;
+                const cardRatio = brightOrCardPixels / total;
+                // Presencia de contraste (marcador negro sobre fondo claro)
+                if ((darkRatio >= 0.04 && darkRatio <= 0.80) || (darkRatio >= 0.02 && cardRatio >= 0.12)) {
+                  detectedCount++;
+                }
+              }
+
+              const allAligned = detectedCount === 4;
+              setIsAligned((prev) => (prev !== allAligned ? allAligned : prev));
+            }
           }
         }
-
-        const darkRatio = darkPixels / total;
-        const cardRatio = cardPixels / total;
-        if ((darkRatio >= 0.05 && darkRatio <= 0.75) || (darkRatio >= 0.03 && cardRatio >= 0.15)) {
-          detectedCount++;
-        }
       }
 
-      const allAligned = detectedCount === 4;
-      setIsAligned((prev) => (prev !== allAligned ? allAligned : prev));
-    }, 130);
+      animId = requestAnimationFrame(checkFrame);
+    };
+
+    animId = requestAnimationFrame(checkFrame);
 
     return () => {
       isMounted = false;
-      clearInterval(intervalId);
+      cancelAnimationFrame(animId);
     };
   }, [streamActive, cardType]);
 
@@ -230,7 +251,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
 
     const vWidth = video.videoWidth || 1280;
     const vHeight = video.videoHeight || 720;
-    const guideEl = guideRef.current;
+    const guideEl = guideBoxRef.current || guideRef.current;
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -264,8 +285,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       const guideX = guideRect.left - videoRect.left - offsetX;
       const guideY = guideRect.top - videoRect.top - offsetY;
 
-      // Margen mínimo del 1% para asegurar que los bordes del cartón queden completos sin recortar marcas
-      const margin = 0.01;
+      // Margen mínimo del 0.5% para asegurar que los bordes del cartón queden completos sin recortar marcas
+      const margin = 0.005;
       const mX = guideRect.width * margin;
       const mY = guideRect.height * margin;
 
@@ -288,14 +309,33 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     onImageSelected(dataUrl, true);
   };
 
-  // Manejar archivo subido desde el explorador
+  // Manejar archivo subido desde el explorador o cámara móvil nativa
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const dataUrl = event.target?.result as string;
       stopCamera();
+
+      try {
+        // Si la foto tiene márgenes (mesa, fondo de taller), auto-detectar y recortar la tarjeta
+        const corners = await detectCardCorners(dataUrl, cardType);
+        const hasMargins =
+          corners.topLeft.x > 0.05 ||
+          corners.topLeft.y > 0.05 ||
+          corners.topRight.x < 0.95 ||
+          corners.bottomRight.y < 0.95;
+
+        if (hasMargins) {
+          const croppedUrl = await warpAndCropCard(dataUrl, corners, 720, 1080);
+          onImageSelected(croppedUrl, true);
+          return;
+        }
+      } catch (err) {
+        console.warn('Auto-recorte en foto subida:', err);
+      }
+
       onImageSelected(dataUrl, true);
     };
     reader.readAsDataURL(file);
@@ -369,7 +409,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                   isAligned ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'
                 }`}
               />
-              <span>{isAligned ? '¡Encuadre Correcto! Listo para disparar' : 'Buscando 4 Marcadores...'}</span>
+              <span>{isAligned ? '✓ ¡4 Marcadores Dentro! Listo para disparar' : 'Buscando 4 Marcadores...'}</span>
             </div>
 
             <button
@@ -381,92 +421,111 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             </button>
           </div>
 
-          {/* Centro: Marco Guía para el Cartón (Centrado absoluto con proyección 1:1) */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+          {/* 1. Centro: Marco Guía para el Cartón (Centrado en el área visible entre top-16 y bottom-28) */}
+          <div className="absolute inset-x-0 top-16 bottom-28 flex items-center justify-center pointer-events-none z-20">
             <div
-              ref={guideRef}
-              className={`relative ${guideWidthClass} aspect-[1/1.5] flex flex-col justify-between transition-all duration-200`}
+              ref={guideBoxRef}
+              className={`relative ${guideWidthClass} aspect-[1/1.52] flex flex-col justify-between transition-all duration-200`}
             >
-              {/* Recuadro punteado con esquinas de alta precisión (Amarillo ➔ Verde) */}
+              {/* Recuadro perimetral punteado (Amarillo ➔ Verde) */}
               <div
                 className={`absolute inset-0 border-2 border-dashed rounded-2xl pointer-events-none transition-all duration-300 ${
                   isAligned
                     ? "border-emerald-400/90 bg-emerald-500/10 shadow-[0_0_35px_rgba(52,211,153,0.45)]"
-                    : "border-amber-400/90 shadow-[0_0_30px_rgba(245,158,11,0.35)]"
+                    : "border-amber-400/90 bg-amber-400/5 shadow-[0_0_30px_rgba(245,158,11,0.35)]"
                 }`}
               />
 
-              {/* 4 Esquinas de Enfoque con Mirillas (Amarillo ➔ Verde) */}
-              <div className="relative flex justify-between z-10 -m-1">
-                <div
-                  className={`relative w-12 h-12 border-t-4 border-l-4 rounded-tl-xl shadow-lg flex items-start justify-start p-1 transition-colors duration-300 ${
-                    isAligned ? "border-emerald-400 bg-emerald-500/20" : "border-amber-400"
-                  }`}
-                >
-                  <div
-                    className={`w-4 h-4 border rounded-sm flex items-center justify-center transition-colors duration-300 ${
-                      isAligned ? "border-emerald-300 bg-emerald-400/40" : "border-amber-300 bg-amber-400/40"
-                    }`}
-                  >
-                    <div className={`w-1.5 h-1.5 rounded-full ${isAligned ? "bg-emerald-400 animate-ping" : "bg-amber-400"}`} />
-                  </div>
-                </div>
-                <div
-                  className={`relative w-12 h-12 border-t-4 border-r-4 rounded-tr-xl shadow-lg flex items-start justify-end p-1 transition-colors duration-300 ${
-                    isAligned ? "border-emerald-400 bg-emerald-500/20" : "border-amber-400"
-                  }`}
-                >
-                  <div
-                    className={`w-4 h-4 border rounded-sm flex items-center justify-center transition-colors duration-300 ${
-                      isAligned ? "border-emerald-300 bg-emerald-400/40" : "border-amber-300 bg-amber-400/40"
-                    }`}
-                  >
-                    <div className={`w-1.5 h-1.5 rounded-full ${isAligned ? "bg-emerald-400 animate-ping" : "bg-amber-400"}`} />
-                  </div>
-                </div>
-              </div>
+              {/* 4 Cuadros Guía Grandes, Visibles y Numerados (44x44 px: w-11 h-11) */}
 
-              {/* Indicador central de alineación */}
-              <div className="flex flex-col items-center justify-center space-y-1 opacity-70">
-                <div className={`w-10 h-0.5 ${isAligned ? "bg-emerald-400/60" : "bg-amber-400/50"}`} />
+              {/* Esquina 1 (Top-Left): top-1 left-1 con etiqueta visible 1 */}
+              <div
+                className={`absolute top-1 left-1 w-11 h-11 rounded-lg border-2 flex items-center justify-center transition-all duration-300 z-10 pointer-events-none ${
+                  isAligned
+                    ? 'border-emerald-400 bg-emerald-500/30 text-emerald-300 scale-110 shadow-[0_0_15px_rgba(52,211,153,0.8)]'
+                    : 'border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.5)]'
+                }`}
+              >
+                {/* Mira concéntrica interior */}
+                <div className="w-5 h-5 rounded-full border border-dashed border-current flex items-center justify-center">
+                  <div className={`w-2 h-2 rounded-full ${isAligned ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`} />
+                </div>
+                {/* Etiqueta visible 1 */}
                 <span
-                  className={`text-[10px] uppercase tracking-widest font-mono px-2 py-0.5 rounded transition-colors duration-300 ${
-                    isAligned ? "text-emerald-300 bg-emerald-950/80 border border-emerald-500/40" : "text-amber-300 bg-black/60"
+                  className={`absolute -top-2.5 -left-2.5 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black font-mono shadow-md border ${
+                    isAligned
+                      ? 'bg-emerald-400 text-slate-950 border-emerald-200'
+                      : 'bg-amber-400 text-slate-950 border-amber-200'
                   }`}
                 >
-                  ZONA DE DATOS HSK 63
+                  1
                 </span>
-                <div className={`w-10 h-0.5 ${isAligned ? "bg-emerald-400/60" : "bg-amber-400/50"}`} />
               </div>
 
-              {/* Esquinas Inferiores con Mirillas */}
-              <div className="relative flex justify-between z-10 -m-1">
-                <div
-                  className={`relative w-12 h-12 border-b-4 border-l-4 rounded-bl-xl shadow-lg flex items-end justify-start p-1 transition-colors duration-300 ${
-                    isAligned ? "border-emerald-400 bg-emerald-500/20" : "border-amber-400"
+              {/* Esquina 2 (Top-Right): top-1 right-1 con etiqueta visible 2 */}
+              <div
+                className={`absolute top-1 right-1 w-11 h-11 rounded-lg border-2 flex items-center justify-center transition-all duration-300 z-10 pointer-events-none ${
+                  isAligned
+                    ? 'border-emerald-400 bg-emerald-500/30 text-emerald-300 scale-110 shadow-[0_0_15px_rgba(52,211,153,0.8)]'
+                    : 'border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.5)]'
+                }`}
+              >
+                <div className="w-5 h-5 rounded-full border border-dashed border-current flex items-center justify-center">
+                  <div className={`w-2 h-2 rounded-full ${isAligned ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`} />
+                </div>
+                <span
+                  className={`absolute -top-2.5 -right-2.5 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black font-mono shadow-md border ${
+                    isAligned
+                      ? 'bg-emerald-400 text-slate-950 border-emerald-200'
+                      : 'bg-amber-400 text-slate-950 border-amber-200'
                   }`}
                 >
-                  <div
-                    className={`w-4 h-4 border rounded-sm flex items-center justify-center transition-colors duration-300 ${
-                      isAligned ? "border-emerald-300 bg-emerald-400/40" : "border-amber-300 bg-amber-400/40"
-                    }`}
-                  >
-                    <div className={`w-1.5 h-1.5 rounded-full ${isAligned ? "bg-emerald-400 animate-ping" : "bg-amber-400"}`} />
-                  </div>
+                  2
+                </span>
+              </div>
+
+              {/* Esquina 3 (Bottom-Left): bottom-1 left-1 con etiqueta visible 3 */}
+              <div
+                className={`absolute bottom-1 left-1 w-11 h-11 rounded-lg border-2 flex items-center justify-center transition-all duration-300 z-10 pointer-events-none ${
+                  isAligned
+                    ? 'border-emerald-400 bg-emerald-500/30 text-emerald-300 scale-110 shadow-[0_0_15px_rgba(52,211,153,0.8)]'
+                    : 'border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.5)]'
+                }`}
+              >
+                <div className="w-5 h-5 rounded-full border border-dashed border-current flex items-center justify-center">
+                  <div className={`w-2 h-2 rounded-full ${isAligned ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`} />
                 </div>
-                <div
-                  className={`relative w-12 h-12 border-b-4 border-r-4 rounded-br-xl shadow-lg flex items-end justify-end p-1 transition-colors duration-300 ${
-                    isAligned ? "border-emerald-400 bg-emerald-500/20" : "border-amber-400"
+                <span
+                  className={`absolute -bottom-2.5 -left-2.5 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black font-mono shadow-md border ${
+                    isAligned
+                      ? 'bg-emerald-400 text-slate-950 border-emerald-200'
+                      : 'bg-amber-400 text-slate-950 border-amber-200'
                   }`}
                 >
-                  <div
-                    className={`w-4 h-4 border rounded-sm flex items-center justify-center transition-colors duration-300 ${
-                      isAligned ? "border-emerald-300 bg-emerald-400/40" : "border-amber-300 bg-amber-400/40"
-                    }`}
-                  >
-                    <div className={`w-1.5 h-1.5 rounded-full ${isAligned ? "bg-emerald-400 animate-ping" : "bg-amber-400"}`} />
-                  </div>
+                  3
+                </span>
+              </div>
+
+              {/* Esquina 4 (Bottom-Right): bottom-1 right-1 con etiqueta visible 4 */}
+              <div
+                className={`absolute bottom-1 right-1 w-11 h-11 rounded-lg border-2 flex items-center justify-center transition-all duration-300 z-10 pointer-events-none ${
+                  isAligned
+                    ? 'border-emerald-400 bg-emerald-500/30 text-emerald-300 scale-110 shadow-[0_0_15px_rgba(52,211,153,0.8)]'
+                    : 'border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.5)]'
+                }`}
+              >
+                <div className="w-5 h-5 rounded-full border border-dashed border-current flex items-center justify-center">
+                  <div className={`w-2 h-2 rounded-full ${isAligned ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`} />
                 </div>
+                <span
+                  className={`absolute -bottom-2.5 -right-2.5 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black font-mono shadow-md border ${
+                    isAligned
+                      ? 'bg-emerald-400 text-slate-950 border-emerald-200'
+                      : 'bg-amber-400 text-slate-950 border-amber-200'
+                  }`}
+                >
+                  4
+                </span>
               </div>
             </div>
           </div>
@@ -481,7 +540,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               }`}
             >
               {isAligned
-                ? '¡Encuadre Correcto! Listo para disparar'
+                ? '✓ ¡4 Marcadores Dentro! Listo para disparar'
                 : 'Mete los 4 cuadros negros del cartón dentro de las 4 esquinas 1, 2, 3 y 4'}
             </div>
 
@@ -490,7 +549,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               disabled={isProcessing}
               className={`relative p-2 rounded-full border-4 backdrop-blur-sm shadow-2xl active:scale-90 transition-all hover:scale-105 ${
                 isAligned
-                  ? 'border-emerald-400/90 bg-emerald-500/30 shadow-[0_0_30px_rgba(52,211,153,0.6)] ring-4 ring-emerald-400/40'
+                  ? 'border-emerald-400/90 bg-emerald-500/30 shadow-[0_0_30px_rgba(52,211,153,0.6)] ring-4 ring-emerald-400/40 animate-pulse'
                   : 'border-white/95 bg-white/20'
               }`}
               title="Tomar foto del cartón"
@@ -558,51 +617,54 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
 
             {/* Opciones de captura grandes para tocar con los dedos en móvil */}
             <div className="w-full flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5">
-              {/* Opción 1: Cámara móvil nativa */}
-              <button
-                onClick={() => nativeCameraInputRef.current?.click()}
-                className={`flex items-center justify-center space-x-2 px-5 py-3 ${
-                  isOrange ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-600 hover:bg-emerald-700'
-                } text-white text-xs sm:text-sm font-bold rounded-xl shadow-xl transition active:scale-95`}
+              {/* Opción 1: Cámara móvil nativa directa */}
+              <label
+                htmlFor="native-camera-input"
+                className={`flex items-center justify-center space-x-2 px-5 py-3.5 ${
+                  isOrange ? 'bg-orange-500 hover:bg-orange-600 active:bg-orange-700' : 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800'
+                } text-white text-xs sm:text-sm font-bold rounded-xl shadow-xl transition active:scale-95 cursor-pointer touch-manipulation select-none`}
               >
                 <Smartphone className="w-4 h-4" />
                 <span>Tomar Foto (Cámara Móvil)</span>
-              </button>
+              </label>
 
               {/* Opción 2: Visor WebRTC en vivo */}
               <button
+                type="button"
                 onClick={startCamera}
-                className="flex items-center justify-center space-x-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold rounded-xl border border-slate-700 transition active:scale-95"
+                className="flex items-center justify-center space-x-2 px-4 py-3.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 text-xs sm:text-sm font-semibold rounded-xl border border-slate-700 transition active:scale-95 cursor-pointer touch-manipulation select-none"
               >
                 <Video className="w-4 h-4 text-blue-400" />
                 <span>Visor en Vivo con Guía</span>
               </button>
 
               {/* Opción 3: Subir de galería */}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center space-x-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold rounded-xl border border-slate-700 transition active:scale-95"
+              <label
+                htmlFor="file-upload-input"
+                className="flex items-center justify-center space-x-2 px-4 py-3.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 text-xs sm:text-sm font-semibold rounded-xl border border-slate-700 transition active:scale-95 cursor-pointer touch-manipulation select-none"
               >
                 <Upload className="w-4 h-4 text-amber-400" />
                 <span>Subir Foto</span>
-              </button>
+              </label>
             </div>
 
-            {/* Inputs ocultos necesarios para la cámara nativa del celular o explorador de archivos */}
+            {/* Inputs ocultos enlazados directamente a los labels por ID (visibles en el render tree pero con opacidad 0 para compatibilidad total con iOS Safari) */}
             <input
+              id="native-camera-input"
               ref={nativeCameraInputRef}
               type="file"
               accept="image/*"
               capture="environment"
               onChange={handleFileUpload}
-              className="hidden"
+              className="absolute opacity-0 pointer-events-none w-0 h-0 -z-50 overflow-hidden"
             />
             <input
+              id="file-upload-input"
               ref={fileInputRef}
               type="file"
               accept="image/*"
               onChange={handleFileUpload}
-              className="hidden"
+              className="absolute opacity-0 pointer-events-none w-0 h-0 -z-50 overflow-hidden"
             />
           </div>
         </div>

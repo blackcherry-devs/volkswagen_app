@@ -149,10 +149,11 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* 4. Barra Móvil Inferior / Flotante de Pestañas (Optimizado táctil para celular) */}
       <div className="lg:hidden flex items-center justify-around bg-slate-950/95 py-2 px-1 border-t border-slate-800/90 backdrop-blur-md">
         <button
+          type="button"
           onClick={() => setActiveTab('capture')}
-          className={`flex flex-col items-center py-1 px-3 rounded-xl transition ${
+          className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition cursor-pointer touch-manipulation active:scale-95 ${
             activeTab === 'capture'
-              ? 'text-blue-400 bg-blue-950/40 font-bold border border-blue-500/30'
+              ? 'text-blue-400 bg-blue-950/40 font-bold border border-blue-500/30 shadow'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
@@ -161,10 +162,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('excel')}
-          className={`flex flex-col items-center py-1 px-3 rounded-xl transition relative ${
+          className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition cursor-pointer touch-manipulation active:scale-95 relative ${
             activeTab === 'excel'
-              ? 'text-emerald-400 bg-emerald-950/40 font-bold border border-emerald-500/30'
+              ? 'text-emerald-400 bg-emerald-950/40 font-bold border border-emerald-500/30 shadow'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
@@ -173,10 +175,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('print')}
-          className={`flex flex-col items-center py-1 px-3 rounded-xl transition ${
+          className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition cursor-pointer touch-manipulation active:scale-95 ${
             activeTab === 'print'
-              ? 'text-blue-400 bg-blue-950/40 font-bold border border-blue-500/30'
+              ? 'text-blue-400 bg-blue-950/40 font-bold border border-blue-500/30 shadow'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
@@ -185,10 +188,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('calibrate')}
-          className={`flex flex-col items-center py-1 px-3 rounded-xl transition ${
+          className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition cursor-pointer touch-manipulation active:scale-95 ${
             activeTab === 'calibrate'
-              ? 'text-purple-400 bg-purple-950/40 font-bold border border-purple-500/30'
+              ? 'text-purple-400 bg-purple-950/40 font-bold border border-purple-500/30 shadow'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >

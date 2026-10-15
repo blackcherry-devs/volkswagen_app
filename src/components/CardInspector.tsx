@@ -206,10 +206,15 @@ export const CardInspector: React.FC<CardInspectorProps> = ({
 
   // Mapeo dinámico de cajas delimitadoras según las 4 esquinas detectadas
   const getDynamicFieldStyle = (bbox: { x: number; y: number; width: number; height: number }) => {
-    const u1 = (bbox.x - X_MIN) / (X_MAX - X_MIN);
-    const v1 = (bbox.y - Y_MIN) / (Y_MAX - Y_MIN);
-    const u2 = (bbox.x + bbox.width - X_MIN) / (X_MAX - X_MIN);
-    const v2 = (bbox.y + bbox.height - Y_MIN) / (Y_MAX - Y_MIN);
+    const xMin = template.fiducialMarkers?.topLeft?.x ?? 0.0525;
+    const xMax = template.fiducialMarkers?.topRight?.x ?? 0.9475;
+    const yMin = template.fiducialMarkers?.topLeft?.y ?? 0.3774;
+    const yMax = template.fiducialMarkers?.bottomLeft?.y ?? 0.9642;
+
+    const u1 = (bbox.x - xMin) / (xMax - xMin);
+    const v1 = (bbox.y - yMin) / (yMax - yMin);
+    const u2 = (bbox.x + bbox.width - xMin) / (xMax - xMin);
+    const v2 = (bbox.y + bbox.height - yMin) / (yMax - yMin);
 
     const pTL = interpolatePoint(corners, u1, v1);
     const pTR = interpolatePoint(corners, u2, v1);
