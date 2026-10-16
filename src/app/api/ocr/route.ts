@@ -14,13 +14,15 @@ async function resolveOllamaModel(ollamaUrl: string, requestedModel: string): Pr
     // 1. Si el modelo pedido existe exactamente
     if (models.includes(requestedModel)) return requestedModel;
 
-    // 2. Si pidieron Qwen (o es el default), buscar qwen2.5-vl instalado
-    if (requestedModel.toLowerCase().includes('qwen')) {
-      const qwenMatch = models.find((m) => m.toLowerCase().includes('qwen2.5-vl') || m.toLowerCase().includes('qwen'));
-      if (qwenMatch) return qwenMatch;
-    }
+    // 2. Si hay algún modelo de visión de última generación instalado (llama3.2-vision o qwen2.5-vl)
+    const modernVisionMatch = models.find((m) =>
+      m.toLowerCase().includes('llama3.2-vision') ||
+      m.toLowerCase().includes('qwen2.5-vl') ||
+      m.toLowerCase().includes('qwen')
+    );
+    if (modernVisionMatch) return modernVisionMatch;
 
-    // 3. Fallback a LLaVA si Qwen no está descargado
+    // 3. Fallback a LLaVA si ningún modelo moderno está descargado
     const llavaMatch = models.find((m) => m.toLowerCase().includes('llava'));
     if (llavaMatch) return llavaMatch;
 

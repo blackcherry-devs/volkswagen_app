@@ -1,7 +1,24 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Sliders, Copy, Check, Download, Crosshair, Code, Save, RotateCcw, Sparkles, CheckCircle2 } from 'lucide-react';
+import {
+  Sliders,
+  Copy,
+  Check,
+  Download,
+  Crosshair,
+  Code,
+  Save,
+  RotateCcw,
+  Sparkles,
+  CheckCircle2,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  Plus,
+  Minus
+} from 'lucide-react';
 import { CardType, BoundingBox } from '@/types/card';
 import {
   ORANGE_CARD_TEMPLATE,
@@ -83,6 +100,30 @@ export const CoordinateCalibrator: React.FC = () => {
         [axis]: parseFloat(value.toFixed(4)),
       },
     }));
+  };
+
+  // Ajuste fino milimétrico (D-Pad Nudge)
+  const handleNudge = (dx: number, dy: number) => {
+    if (selectionType === 'marker') {
+      const current = markers[selectedKey as keyof MarkersMap];
+      if (!current) return;
+      handleUpdateMarker('x', Math.max(0, Math.min(1, current.x + dx)));
+      handleUpdateMarker('y', Math.max(0, Math.min(1, current.y + dy)));
+    } else {
+      const current = fields[selectedKey];
+      if (!current) return;
+      handleUpdateField('x', Math.max(0, Math.min(0.95, current.x + dx)));
+      handleUpdateField('y', Math.max(0, Math.min(0.95, current.y + dy)));
+    }
+  };
+
+  const handleResizeNudge = (dw: number, dh: number) => {
+    if (selectionType === 'field') {
+      const current = fields[selectedKey];
+      if (!current) return;
+      if (dw !== 0) handleUpdateField('width', Math.max(0.02, Math.min(0.98, current.width + dw)));
+      if (dh !== 0) handleUpdateField('height', Math.max(0.01, Math.min(0.5, current.height + dh)));
+    }
   };
 
   // GUARDAR Y APLICAR CAMBIOS A TODA LA APP
@@ -487,6 +528,105 @@ export const CoordinateCalibrator: React.FC = () => {
                 ))}
               </div>
             )}
+
+            {/* CONTROL PAD DE AJUSTE RÁPIDO MILIMÉTRICO (D-PAD) */}
+            <div className="mt-4 bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+              <span className="text-[11px] font-bold text-slate-300 block mb-2">
+                Ajuste Milimétrico con Flechas (1 toque = 0.3%):
+              </span>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                {/* D-Pad de Posición */}
+                <div className="grid grid-cols-3 gap-1 w-28">
+                  <div />
+                  <button
+                    type="button"
+                    onClick={() => handleNudge(0, -0.003)}
+                    className="p-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center active:scale-90 transition border border-slate-700"
+                    title="Subir 1 mm"
+                  >
+                    <ArrowUp className="w-3.5 h-3.5" />
+                  </button>
+                  <div />
+                  <button
+                    type="button"
+                    onClick={() => handleNudge(-0.003, 0)}
+                    className="p-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center active:scale-90 transition border border-slate-700"
+                    title="Mover a la izquierda"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="flex items-center justify-center text-[10px] font-mono text-slate-500">
+                    MOVE
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleNudge(0.003, 0)}
+                    className="p-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center active:scale-90 transition border border-slate-700"
+                    title="Mover a la derecha"
+                  >
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                  <div />
+                  <button
+                    type="button"
+                    onClick={() => handleNudge(0, 0.003)}
+                    className="p-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center active:scale-90 transition border border-slate-700"
+                    title="Bajar 1 mm"
+                  >
+                    <ArrowDown className="w-3.5 h-3.5" />
+                  </button>
+                  <div />
+                </div>
+
+                {/* Botones de Tamaño (Solo para campos de datos) */}
+                {selectionType === 'field' && (
+                  <div className="flex flex-col space-y-1.5 flex-1 min-w-[130px]">
+                    <div className="flex items-center justify-between gap-1 text-[10px]">
+                      <span className="text-slate-400">Ancho:</span>
+                      <div className="flex space-x-1">
+                        <button
+                          type="button"
+                          onClick={() => handleResizeNudge(-0.005, 0)}
+                          className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 active:scale-95"
+                          title="Reducir ancho"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleResizeNudge(0.005, 0)}
+                          className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 active:scale-95"
+                          title="Aumentar ancho"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-1 text-[10px]">
+                      <span className="text-slate-400">Alto:</span>
+                      <div className="flex space-x-1">
+                        <button
+                          type="button"
+                          onClick={() => handleResizeNudge(0, -0.003)}
+                          className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 active:scale-95"
+                          title="Reducir alto"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleResizeNudge(0, 0.003)}
+                          className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 active:scale-95"
+                          title="Aumentar alto"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Botón Grande de Guardar al pie de los controles */}
