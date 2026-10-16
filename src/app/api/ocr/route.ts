@@ -11,22 +11,11 @@ async function resolveOllamaModel(ollamaUrl: string, requestedModel: string): Pr
     const data = await res.json();
     const models: string[] = (data.models || []).map((m: any) => m.name || m.model || '');
 
-    // 1. Si el modelo pedido existe exactamente
-    if (models.includes(requestedModel)) return requestedModel;
-
-    // 2. Si hay algún modelo de visión de última generación instalado (llama3.2-vision o qwen2.5-vl)
-    const modernVisionMatch = models.find((m) =>
-      m.toLowerCase().includes('llama3.2-vision') ||
-      m.toLowerCase().includes('qwen2.5-vl') ||
-      m.toLowerCase().includes('qwen')
-    );
-    if (modernVisionMatch) return modernVisionMatch;
-
-    // 3. Fallback a LLaVA si ningún modelo moderno está descargado
+    // 1. Si LLaVA está disponible (arquitectura CLIP compatible y verificada)
     const llavaMatch = models.find((m) => m.toLowerCase().includes('llava'));
     if (llavaMatch) return llavaMatch;
 
-    // 4. Si hay algún modelo disponible, devolver el primero o el solicitado
+    // 2. Si hay algún otro modelo disponible
     return models[0] || requestedModel;
   } catch {
     return requestedModel;
