@@ -569,7 +569,7 @@ export default function Home() {
 
         {/* PESTAÑA 4: CALIBRADOR VISUAL */}
         {activeTab === 'calibrate' && (
-          <CoordinateCalibrator />
+          <CoordinateCalibrator onNotify={(msg, type) => showNotification(msg, type)} />
         )}
 
         {/* MODAL DE CONFIGURACIÓN Y ESTADO DE OLLAMA GLM-OCR */}

@@ -46,7 +46,11 @@ const MARKER_LABELS: Record<keyof MarkersMap, string> = {
   bottomRight: 'Marcador Inferior Derecho (Bottom-Right)',
 };
 
-export const CoordinateCalibrator: React.FC = () => {
+interface CoordinateCalibratorProps {
+  onNotify?: (message: string, type: 'success' | 'info' | 'error') => void;
+}
+
+export const CoordinateCalibrator: React.FC<CoordinateCalibratorProps> = ({ onNotify }) => {
   const [activeCardType, setActiveCardType] = useState<CardType>('naranja');
 
   // Cargar estado inicial desde getTemplate (que ya lee localStorage si existe)
@@ -133,10 +137,14 @@ export const CoordinateCalibrator: React.FC = () => {
       fiducialMarkers: markers,
     });
     setHasCustom(true);
-    setSaveSuccessMessage('¡Coordenadas guardadas y aplicadas a toda la app! El Visor y la Cámara ya usan estas posiciones.');
+    const msg = '¡Nuevas coordenadas guardadas con éxito! Las nuevas posiciones ya están activas en el Visor, la Cámara y el OCR.';
+    setSaveSuccessMessage(msg);
+    if (onNotify) {
+      onNotify('¡Nuevas coordenadas guardadas con éxito!', 'success');
+    }
     setTimeout(() => {
       setSaveSuccessMessage(null);
-    }, 4000);
+    }, 4500);
   };
 
   // RESTABLECER A VALORES OFICIALES DE FÁBRICA
