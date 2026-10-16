@@ -32,6 +32,7 @@ import {
 } from '@/types/card';
 import { compareSharedFields } from '@/lib/validation';
 import { checkOllamaStatus, runOcrRecognition, OllamaStatus } from '@/lib/ocrService';
+import { CardCorners } from '@/lib/cornerDetection';
 import { Terminal, Cpu, HelpCircle, X, RotateCcw } from 'lucide-react';
 
 export default function Home() {
@@ -86,8 +87,8 @@ export default function Home() {
     }
   };
 
-  // Función para procesar y cotejar cuando una tarjeta es escaneada o subida con Ollama GLM-OCR
-  const handleImageSelected = async (imageUri: string, autoTriggerExtract = true) => {
+  // Función para procesar y cotejar cuando una tarjeta es escaneada o subida con visión local
+  const handleImageSelected = async (imageUri: string, autoTriggerExtract = true, corners?: CardCorners) => {
     if (autoTriggerExtract) {
       setIsProcessing(true);
       try {
@@ -95,13 +96,14 @@ export default function Home() {
           selectedCardType,
           imageUri,
           {
+            corners,
             onProgress: (step) => setProcessingStep(step),
           }
         );
 
         if (isRealOllama) {
           showNotification(
-            '¡Reconocimiento completado con Ollama LLaVA local!',
+            '¡Reconocimiento completado con visión e IA local!',
             'success'
           );
         } else if (statusMessage) {
@@ -526,6 +528,7 @@ export default function Home() {
                   hasOrangeImage={Boolean(orangeScan)}
                   hasGreenImage={Boolean(greenScan)}
                   onImageTransformed={handleImageTransformed}
+                  onReExtractOcr={(imgUri, corners) => handleImageSelected(imgUri, true, corners)}
                 />
               </div>
 

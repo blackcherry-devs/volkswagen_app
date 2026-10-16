@@ -328,7 +328,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           corners.bottomRight.y < 0.95;
 
         if (hasMargins) {
-          const croppedUrl = await warpAndCropCard(dataUrl, corners, 720, 1080);
+          const croppedUrl = await warpAndCropCard(dataUrl, corners, 800, 1216);
           onImageSelected(croppedUrl, true);
           return;
         }

@@ -36,7 +36,7 @@ interface CardInspectorProps {
   hasOrangeImage?: boolean;
   hasGreenImage?: boolean;
   onImageTransformed?: (newImageUrl: string) => void;
-  onReExtractOcr?: (imageUri: string) => void;
+  onReExtractOcr?: (imageUri: string, corners?: CardCorners) => void;
 }
 
 // Coordenadas canónicas de referencia en la plantilla HSK 63
@@ -149,18 +149,21 @@ export const CardInspector: React.FC<CardInspectorProps> = ({
     setIsWarping(true);
     setStatusMessage('Enderezando y normalizando imagen...');
     try {
-      const straightened = await warpAndCropCard(imageUrl, corners, 720, 1080);
-      // Actualizar esquinas a posición normalizada completa
-      setCorners({
+      const straightened = await warpAndCropCard(imageUrl, corners, 800, 1216);
+      const normalizedCorners = {
         topLeft: { x: 0.04, y: 0.05 },
         topRight: { x: 0.96, y: 0.05 },
         bottomLeft: { x: 0.04, y: 0.95 },
         bottomRight: { x: 0.96, y: 0.95 },
-      });
+      };
+      setCorners(normalizedCorners);
       if (onImageTransformed) {
         onImageTransformed(straightened);
       }
-      setStatusMessage('¡Cartón enderezado y perfectamente alineado!');
+      if (onReExtractOcr) {
+        onReExtractOcr(straightened, normalizedCorners);
+      }
+      setStatusMessage('¡Cartón enderezado y re-extraído con éxito!');
       setTimeout(() => setStatusMessage(null), 2500);
     } catch (err) {
       console.error('Error al enderezar:', err);
@@ -303,6 +306,17 @@ export const CardInspector: React.FC<CardInspectorProps> = ({
                 <Crop className="w-3 h-3 text-amber-400" />
                 <span>Enderezar</span>
               </button>
+
+              {onReExtractOcr && (
+                <button
+                  onClick={() => onReExtractOcr(imageUrl, corners)}
+                  className="px-2 py-1 rounded bg-emerald-950/70 hover:bg-emerald-900/80 border border-emerald-800/80 text-emerald-300 text-[11px] font-semibold transition flex items-center space-x-1 active:scale-95"
+                  title="Re-extraer campos con IA y casillas según la calibración de esquinas actual"
+                >
+                  <RefreshCw className="w-3 h-3 text-emerald-400" />
+                  <span>Re-Extraer IA</span>
+                </button>
+              )}
 
               <button
                 onClick={() => setShowCornersGuide((prev) => !prev)}

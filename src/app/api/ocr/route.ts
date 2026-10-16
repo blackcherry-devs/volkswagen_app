@@ -1,32 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const DEFAULT_OLLAMA_URL = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
-const DEFAULT_MODEL = process.env.OLLAMA_MODEL || 'llava';
+const DEFAULT_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5-vl:7b';
 
-// Función auxiliar para resolver el modelo exacto disponible en Ollama
+// Función auxiliar para resolver el modelo exacto disponible en Ollama (qwen2.5-vl -> llava fallback)
 async function resolveOllamaModel(ollamaUrl: string, requestedModel: string): Promise<string> {
   try {
     const res = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(2500) });
     if (!res.ok) return requestedModel;
     const data = await res.json();
     const models: string[] = (data.models || []).map((m: any) => m.name || m.model || '');
-    
-    // Si el modelo pedido existe exactamente, usarlo
+
+    // 1. Si el modelo pedido existe exactamente
     if (models.includes(requestedModel)) return requestedModel;
 
-    // Si pidieron llava o llava:7b, buscar cualquier variación de llava instalada
-    if (requestedModel.toLowerCase().includes('llava')) {
-      const match = models.find((m) => m.toLowerCase().includes('llava'));
-      if (match) return match;
+    // 2. Si pidieron Qwen (o es el default), buscar qwen2.5-vl instalado
+    if (requestedModel.toLowerCase().includes('qwen')) {
+      const qwenMatch = models.find((m) => m.toLowerCase().includes('qwen2.5-vl') || m.toLowerCase().includes('qwen'));
+      if (qwenMatch) return qwenMatch;
     }
 
-    return requestedModel;
+    // 3. Fallback a LLaVA si Qwen no está descargado
+    const llavaMatch = models.find((m) => m.toLowerCase().includes('llava'));
+    if (llavaMatch) return llavaMatch;
+
+    // 4. Si hay algún modelo disponible, devolver el primero o el solicitado
+    return models[0] || requestedModel;
   } catch {
     return requestedModel;
   }
 }
 
-// GET: Healthcheck para verificar si Ollama está corriendo y si llava está descargado
+// Envía un prompt y una imagen a Ollama con timeout y reintentos limpios
+async function queryOllamaVision(
+  ollamaUrl: string,
+  model: string,
+  prompt: string,
+  imageBase64: string,
+  timeoutMs = 45000
+): Promise<string> {
+  const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+  const res = await fetch(`${ollamaUrl}/api/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      prompt,
+      images: [cleanBase64],
+      stream: false,
+      options: {
+        temperature: 0,
+        num_predict: 512,
+      },
+    }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Ollama (${res.status}): ${errText}`);
+  }
+
+  const result = await res.json();
+  return result.response || '';
+}
+
+// GET: Healthcheck para verificar si Ollama está corriendo y qué modelo está activo
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const ollamaUrl = searchParams.get('url') || DEFAULT_OLLAMA_URL;
@@ -35,7 +74,7 @@ export async function GET(req: NextRequest) {
     const res = await fetch(`${ollamaUrl}/api/tags`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(3000), // 3 segundos timeout
+      signal: AbortSignal.timeout(3000),
     });
 
     if (!res.ok) {
@@ -49,14 +88,14 @@ export async function GET(req: NextRequest) {
 
     const data = await res.json();
     const models: string[] = (data.models || []).map((m: any) => m.name || m.model || '');
-    const detectedLlava = models.find((m) => m.toLowerCase().includes('llava'));
-    const modelAvailable = !!detectedLlava;
+    const detectedModel = await resolveOllamaModel(ollamaUrl, DEFAULT_MODEL);
+    const modelAvailable = models.length > 0;
 
     return NextResponse.json({
       online: true,
       modelAvailable,
       models,
-      targetModel: detectedLlava || DEFAULT_MODEL,
+      targetModel: detectedModel,
       url: ollamaUrl,
     });
   } catch (error: any) {
@@ -69,93 +108,175 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST: Procesar imagen con Ollama LLaVA (vision model)
+// POST: Procesar imagen o recortes ROI con el modelo de visión local
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { imageBase64, cardType, ollamaUrl = DEFAULT_OLLAMA_URL, model = DEFAULT_MODEL } = body;
+    const {
+      imageBase64,
+      crops,
+      cardType = 'naranja',
+      ollamaUrl = DEFAULT_OLLAMA_URL,
+      model = DEFAULT_MODEL,
+    } = body;
 
-    if (!imageBase64) {
+    if (!imageBase64 && !crops) {
       return NextResponse.json(
-        { success: false, error: 'No se proporcionó la imagen en formato base64' },
+        { success: false, error: 'No se proporcionó imagen base64 ni recortes de regiones' },
         { status: 400 }
       );
     }
 
-    // Resolver el nombre exacto de modelo disponible en Ollama (ej. 'llava' vs 'llava:7b')
     const activeModel = await resolveOllamaModel(ollamaUrl, model);
+    const startTime = Date.now();
+    let extractedData: any = {};
+    let rawOutputCombined = '';
 
-    // Limpiar el encabezado data:image/...;base64, si viene incluido
-    const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+    // ESTRATEGIA A: Pipeline de Recortes Enfocados (Crop ROI)
+    if (crops && (crops.regionA || crops.regionB || crops.regionC || crops.regionD)) {
+      console.log(`[OCR ROI] Procesando recortes enfocado con modelo ${activeModel}...`);
 
-    // Construir prompt especializado para LLaVA según el tipo de cartón
-    const prompt = buildOcrPrompt(cardType || 'naranja');
+      const tasks: Promise<any>[] = [];
 
-    console.log(`[Ollama LLaVA] Enviando solicitud a ${ollamaUrl}/api/generate con modelo ${activeModel}...`);
+      // Región A: Cajetines numéricos (C.C. y No. de Herramienta)
+      if (crops.regionA) {
+        const promptA = `Look at this high-resolution crop of the tool card header:
+1. 'C.C.': Read the 4 handwritten digits inside the 4 boxes (e.g. 4001, 4002).
+2. 'No. de Herramienta:': Read the tool number written after the 'T' box (e.g. 3167 or T-3167).
+Return JSON only:
+{"centroCostos": "", "numeroHerramienta": ""}`;
 
-    // Llamada directa al endpoint nativo de visión de Ollama (/api/generate)
-    const ollamaResponse = await fetch(`${ollamaUrl}/api/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: activeModel,
-        prompt,
-        images: [cleanBase64],
-        stream: false,
-        options: {
-          temperature: 0.1,
-          num_predict: 1024,
-        },
-      }),
-      signal: AbortSignal.timeout(60000), // 60 segundos timeout para inferencia local
-    });
+        tasks.push(
+          queryOllamaVision(ollamaUrl, activeModel, promptA, crops.regionA)
+            .then((res) => {
+              rawOutputCombined += `\n[Region A]: ${res}`;
+              return parseJsonSafe(res);
+            })
+            .catch((err) => {
+              console.warn('[OCR ROI Region A error]:', err.message);
+              return {};
+            })
+        );
+      }
 
-    if (!ollamaResponse.ok) {
-      const errText = await ollamaResponse.text();
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Error de Ollama (${ollamaResponse.status}): ${errText}`,
-          provider: 'ollama-llava',
-        },
-        { status: 502 }
-      );
+      // Región B: Operación, Máquina y Tiempo de Vida Útil
+      if (crops.regionB) {
+        const promptB = `Look at this crop:
+1. 'Operación:': Read the handwritten text or numbers written on the underline after 'Operación:' (e.g. 20).
+2. 'Máquina (1-10):': Read the single machine number written on the line (e.g. 3).
+3. 'Tiempo de vida útil': Read the piece count number written on the line (e.g. 1000 or 1400).
+Return JSON only:
+{"operacion": "", "maquina": "", "tiempoVidaUtil": ""}`;
+
+        tasks.push(
+          queryOllamaVision(ollamaUrl, activeModel, promptB, crops.regionB)
+            .then((res) => {
+              rawOutputCombined += `\n[Region B]: ${res}`;
+              return parseJsonSafe(res);
+            })
+            .catch((err) => {
+              console.warn('[OCR ROI Region B error]:', err.message);
+              return {};
+            })
+        );
+      }
+
+      // Región C: Observaciones
+      if (crops.regionC) {
+        const promptC = `Look at this crop containing the Observaciones box.
+Transcribe the handwritten text written inside the box (e.g. 'buena calidad' or 'Desgaste severo').
+Return JSON only:
+{"observaciones": ""}`;
+
+        tasks.push(
+          queryOllamaVision(ollamaUrl, activeModel, promptC, crops.regionC)
+            .then((res) => {
+              rawOutputCombined += `\n[Region C]: ${res}`;
+              return parseJsonSafe(res);
+            })
+            .catch((err) => {
+              console.warn('[OCR ROI Region C error]:', err.message);
+              return {};
+            })
+        );
+      }
+
+      // Región D: Fecha y Nombre
+      if (crops.regionD) {
+        const promptD = `Look at this crop:
+1. 'Fecha:': Read the handwritten date (format YYYY/MM/DD).
+2. 'Nombre del Operador:': Read the handwritten person name written on the line (e.g. Omar Chavez, Diego Hdz).
+Return JSON only:
+{"fecha": "", "nombre": ""}`;
+
+        tasks.push(
+          queryOllamaVision(ollamaUrl, activeModel, promptD, crops.regionD)
+            .then((res) => {
+              rawOutputCombined += `\n[Region D]: ${res}`;
+              return parseJsonSafe(res);
+            })
+            .catch((err) => {
+              console.warn('[OCR ROI Region D error]:', err.message);
+              return {};
+            })
+        );
+      }
+
+      // Ejecutar consultas de regiones
+      const results = await Promise.all(tasks);
+      for (const r of results) {
+        Object.assign(extractedData, r);
+      }
+    } else {
+      // ESTRATEGIA B: Fallback a imagen completa
+      console.log(`[OCR Full] Enviando imagen completa a Ollama con modelo ${activeModel}...`);
+      const prompt = buildOcrPrompt(cardType);
+      const rawOutput = await queryOllamaVision(ollamaUrl, activeModel, prompt, imageBase64);
+      rawOutputCombined = rawOutput;
+      extractedData = parseOcrResponse(rawOutput, cardType);
     }
 
-    const result = await ollamaResponse.json();
-    const rawOutput = result.response || '';
-
-    // Extraer y normalizar los datos estructurados devueltos por GLM-OCR
-    const extractedData = parseOcrResponse(rawOutput, cardType || 'naranja');
-
-    // Confianzas simuladas / calibradas del modelo
-    const confidences = calculateConfidences(extractedData);
+    // Normalizar datos extraídos
+    const normalizedData = normalizeExtractedFields(extractedData, cardType);
+    const confidences = calculateConfidences(normalizedData);
+    const durationMs = Date.now() - startTime;
 
     return NextResponse.json({
       success: true,
-      provider: 'ollama-llava',
-      model,
-      data: extractedData,
+      provider: 'ollama-vision',
+      model: activeModel,
+      data: normalizedData,
       confidences,
-      rawOutput,
-      durationMs: result.total_duration ? Math.round(result.total_duration / 1e6) : undefined,
+      rawOutput: rawOutputCombined,
+      durationMs,
     });
   } catch (error: any) {
-    console.error('[Ollama LLaVA Error]:', error);
+    console.error('[Ollama Vision Error]:', error);
     return NextResponse.json(
       {
         success: false,
-        error: error?.message || 'Error interno al comunicarse con Ollama LLaVA',
-        provider: 'ollama-llava',
+        error: error?.message || 'Error interno al comunicarse con Ollama',
+        provider: 'ollama-vision',
       },
       { status: 500 }
     );
   }
 }
 
-// Prompt para LLaVA adaptado a los cartoncillos HSK 63 de Volkswagen de México
+function parseJsonSafe(rawText: string): any {
+  try {
+    const mdMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const textToSearch = mdMatch ? mdMatch[1].trim() : rawText;
+    const jsonMatch = textToSearch.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const cleaned = jsonMatch[0].replace(/,\s*([}\]])/g, '$1');
+      return JSON.parse(cleaned);
+    }
+  } catch {}
+  return {};
+}
+
+// Prompt de fallback para cuando se envía la tarjeta completa
 function buildOcrPrompt(cardType: string): string {
   const isOrange = cardType === 'naranja';
 
@@ -278,7 +399,11 @@ function parseOcrResponse(rawText: string, cardType: string): any {
     if (vidaMatch) parsed.tiempoVidaUtil = vidaMatch[1];
   }
 
-  // Normalizar campos para asegurar tipos de datos consistentes
+  return normalizeExtractedFields(parsed, cardType);
+}
+
+// Normaliza campos para asegurar tipos de datos consistentes y formatos oficiales
+function normalizeExtractedFields(parsed: any, cardType: string): any {
   const cleanStr = (val: any, fallback = '') =>
     val !== undefined && val !== null ? String(val).trim() : fallback;
 
