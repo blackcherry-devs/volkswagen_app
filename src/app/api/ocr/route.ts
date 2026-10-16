@@ -195,7 +195,7 @@ Return JSON only:
       // Región D: Fecha y Nombre
       if (crops.regionD) {
         const promptD = `Look at this crop:
-1. 'Fecha:': Read the handwritten date (format YYYY/MM/DD).
+1. 'Fecha:': Read the handwritten date (written as DD/MM/YYYY, YYYY/MM/DD, or DD-MM-YYYY).
 2. 'Nombre del Operador:': Read the handwritten person name written on the line (e.g. Omar Chavez, Diego Hdz).
 Return JSON only:
 {"fecha": "", "nombre": ""}`;
@@ -393,6 +393,30 @@ function parseOcrResponse(rawText: string, cardType: string): any {
   return normalizeExtractedFields(parsed, cardType);
 }
 
+function normalizeDate(raw: string): string {
+  if (!raw) return '';
+  const clean = raw.trim().replace(/[^\d/.-]/g, '');
+  // Formato YYYY/MM/DD o YYYY-MM-DD
+  const ymd = clean.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (ymd) {
+    const [, y, m, d] = ymd;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  // Formato DD/MM/YYYY o DD-MM-YYYY (común en México)
+  const dmy = clean.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+  if (dmy) {
+    const [, d, m, y] = dmy;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  // Formato DD/MM/YY
+  const dmyShort = clean.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2})$/);
+  if (dmyShort) {
+    const [, d, m, yy] = dmyShort;
+    return `20${yy}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  return clean;
+}
+
 // Normaliza campos para asegurar tipos de datos consistentes y formatos oficiales
 function normalizeExtractedFields(parsed: any, cardType: string): any {
   const cleanStr = (val: any, fallback = '') =>
@@ -438,7 +462,7 @@ function normalizeExtractedFields(parsed: any, cardType: string): any {
     maquina,
     husillo,
     tiempoVidaUtil: cleanStr(parsed.tiempoVidaUtil || parsed['vidaUtil']).replace(/\D/g, ''),
-    fecha: cleanStr(parsed.fecha),
+    fecha: normalizeDate(cleanStr(parsed.fecha)),
     turno,
     nombre: cleanStr(parsed.nombre || parsed['operador']),
     observaciones: cleanStr(parsed.observaciones),

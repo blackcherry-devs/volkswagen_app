@@ -36,25 +36,43 @@ export const PrintableCardDesigner: React.FC<PrintableCardDesignerProps> = ({
         @media print {
           @page {
             size: A4 portrait;
-            margin: 10mm 8mm;
+            margin: 10mm auto;
           }
-          /* Ocultar SOLO los elementos de UI de la app web */
-          header,
-          footer,
-          nav,
-          .print\\:hidden,
-          [class*="print:hidden"] {
-            display: none !important;
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
-          body {
-            background: white !important;
+          html, body {
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            color: #000000 !important;
+          }
+          /* Ocultar por completo todos los elementos excepto el contenedor del cartón */
+          body * {
+            visibility: hidden !important;
+          }
+          #printable-card-wrapper,
+          #printable-card-wrapper * {
+            visibility: visible !important;
           }
           #printable-card-wrapper {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: flex-start !important;
+            background: #ffffff !important;
+            background-color: #ffffff !important;
             padding: 0 !important;
             margin: 0 !important;
-            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
           }
-          /* Asegurar tamaños físicos exactos del cartoncillo vectorial */
+          /* Asegurar tamaños físicos exactos del cartoncillo vectorial (80x190mm) */
           #printable-card {
             width: 80mm !important;
             height: 190mm !important;
@@ -63,12 +81,11 @@ export const PrintableCardDesigner: React.FC<PrintableCardDesignerProps> = ({
             min-height: 190mm !important;
             max-height: 190mm !important;
             box-sizing: border-box !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
             page-break-inside: avoid !important;
             margin: 0 auto !important;
             position: relative !important;
-            background: transparent !important;
+            background: #ffffff !important;
+            background-color: #ffffff !important;
             border: none !important;
             box-shadow: none !important;
           }
@@ -78,6 +95,7 @@ export const PrintableCardDesigner: React.FC<PrintableCardDesignerProps> = ({
             max-width: 80mm !important;
             max-height: 190mm !important;
             display: block !important;
+            margin: 0 auto !important;
           }
         }
       `}} />
