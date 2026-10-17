@@ -195,12 +195,18 @@ export async function detectCheckboxesFromImage(
     const origin = toCanvasPx(turnoBox.x, turnoBox.y);
     const dims = toCanvasDims(turnoBox.width, turnoBox.height);
 
-    // 3 casillas distribuidas en la sección derecha de la etiqueta Turno
-    const boxRatios = [
-      { key: '1', relX: 0.18, relW: 0.22 },
-      { key: '2', relX: 0.46, relW: 0.22 },
-      { key: '3', relX: 0.74, relW: 0.22 },
-    ];
+    // 3 casillas distribuidas en la sección de la etiqueta Turno
+    const boxRatios = (turnoBox.width && turnoBox.width < 0.40)
+      ? [
+          { key: '1', relX: 0.36, relW: 0.16 },
+          { key: '2', relX: 0.57, relW: 0.16 },
+          { key: '3', relX: 0.78, relW: 0.16 },
+        ]
+      : [
+          { key: '1', relX: 0.18, relW: 0.22 },
+          { key: '2', relX: 0.46, relW: 0.22 },
+          { key: '3', relX: 0.74, relW: 0.22 },
+        ];
 
     let bestKey = '';
     let maxDensity = 0;
