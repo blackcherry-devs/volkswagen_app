@@ -16,7 +16,7 @@ export const CARD_FONT_CONFIG = {
   fontSizeMotivosTitle: 14,
 
   // Título de la sección de observaciones
-  fontSizeObservacionesTitle: 13,
+  fontSizeObservacionesTitle: 17,
 
   // Encabezados superiores ("HSK 63", "VOLKSWAGEN", "DE MÉXICO", "C.C.")
   fontSizeHeaderHsk: 20,
@@ -102,7 +102,7 @@ export function generateCardSvgString(
   const orangeMotivosCheckboxes = isOrange
     ? `
     <!-- Motivo de Desmontaje (12 casillas en 2 columnas compactas) -->
-    <g transform="translate(68, 1297)">
+    <g transform="translate(68, 1285)">
       <rect width="664" height="175" rx="8" fill="#ffffff" fill-opacity="0.95" stroke="#000000" stroke-width="2"/>
       <text x="16" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeMotivosTitle}" font-weight="900" fill="#000000">
         MOTIVO DE DESMONTAJE (MARCAR CON X):
@@ -347,16 +347,16 @@ export function generateCardSvgString(
     ${
       isOrange
         ? `
-    <g transform="translate(68, 1481)">
-      <text x="4" y="15" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeObservacionesTitle}" font-weight="900" fill="#000000">
+    <g transform="translate(68, 1490)">
+      <text x="4" y="17" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeObservacionesTitle}" font-weight="900" fill="#000000">
         OBSERVACIONES / DETALLES DE FALLA:
       </text>
-      <rect x="0" y="22" width="664" height="65" rx="6" fill="#ffffff" fill-opacity="0.92" stroke="#000000" stroke-width="1.5"/>
-      <line x1="10" y1="52" x2="654" y2="52" stroke="#cbd5e1" stroke-width="1"/>
+      <rect x="0" y="25" width="664" height="65" rx="6" fill="#ffffff" fill-opacity="0.92" stroke="#000000" stroke-width="1.5"/>
+      <line x1="10" y1="55" x2="654" y2="55" stroke="#cbd5e1" stroke-width="1"/>
       ${
         !blank && (data as OrangeCardData)?.observaciones
           ? `
-      <text x="14" y="44" font-family="cursive, 'Brush Script MT', sans-serif" font-size="22" font-weight="bold" fill="${inkColor}">
+      <text x="14" y="47" font-family="cursive, 'Brush Script MT', sans-serif" font-size="22" font-weight="bold" fill="${inkColor}">
         ${(data as OrangeCardData).observaciones}
       </text>
       `
@@ -386,7 +386,7 @@ export function generateCardSvgString(
 
     <!-- 6. FILA DE CONTROL: FECHA, TURNO Y NOMBRE -->
     <!-- Fecha -->
-    <g transform="translate(70, ${isOrange ? '1581' : '1525'})">
+    <g transform="translate(70, ${isOrange ? '1608' : '1525'})">
       <text x="0" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         Fecha:
       </text>
@@ -403,7 +403,7 @@ export function generateCardSvgString(
     </g>
 
     <!-- Turno -->
-    <g transform="translate(70, ${isOrange ? '1648' : '1598'})">
+    <g transform="translate(70, ${isOrange ? '1668' : '1598'})">
       <text x="0" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         Turno:
       </text>
@@ -423,7 +423,7 @@ export function generateCardSvgString(
     </g>
 
     <!-- Nombre -->
-    <g transform="translate(70, ${isOrange ? '1704' : '1665'})">
+    <g transform="translate(70, ${isOrange ? '1726' : '1665'})">
       <text x="0" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         Nombre del Operador:
       </text>

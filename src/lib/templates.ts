@@ -1,7 +1,7 @@
 import { CardTemplate, CardType } from '@/types/card';
 
-export const LS_KEY_NARANJA_TEMPLATE = 'vw_card_template_naranja_v4';
-export const LS_KEY_VERDE_TEMPLATE   = 'vw_card_template_verde_v4';
+export const LS_KEY_NARANJA_TEMPLATE = 'vw_card_template_naranja_v5';
+export const LS_KEY_VERDE_TEMPLATE   = 'vw_card_template_verde_v5';
 
 // Plantilla Cartoncillo Naranja HSK 63 (Con arco superior de 40mm radio, hoyo de 55.5mm y 10 campos oficiales)
 export const ORANGE_CARD_TEMPLATE: CardTemplate = {
@@ -76,25 +76,25 @@ export const ORANGE_CARD_TEMPLATE: CardTemplate = {
       id: 'motivoDesmontaje',
       label: '10) Motivo de Desmontaje (12 Casillas)',
       x: 0.0883,
-      y: 0.6825,
+      y: 0.6763,
       width: 0.7876,
-      height: 0.0880,
+      height: 0.0921,
       type: 'checkbox',
     },
     observaciones: {
       id: 'observaciones',
       label: 'Observaciones / Falla',
       x: 0.0883,
-      y: 0.7794,
+      y: 0.7842,
       width: 0.7876,
-      height: 0.0440,
+      height: 0.0474,
       type: 'handwritten',
     },
     fecha: {
       id: 'fecha',
       label: '7) Fecha',
       x: 0.0883,
-      y: 0.8322,
+      y: 0.8463,
       width: 0.7876,
       height: 0.0323,
       type: 'handwritten',
@@ -103,7 +103,7 @@ export const ORANGE_CARD_TEMPLATE: CardTemplate = {
       id: 'turno',
       label: '8) Turno',
       x: 0.0883,
-      y: 0.8674,
+      y: 0.8779,
       width: 0.4654,
       height: 0.0323,
       type: 'checkbox',
@@ -112,7 +112,7 @@ export const ORANGE_CARD_TEMPLATE: CardTemplate = {
       id: 'nombre',
       label: '9) Nombre',
       x: 0.0883,
-      y: 0.8967,
+      y: 0.9084,
       width: 0.7876,
       height: 0.0381,
       type: 'handwritten',
