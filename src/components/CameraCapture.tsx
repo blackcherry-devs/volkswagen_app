@@ -421,8 +421,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             </button>
           </div>
 
-          {/* 1. Centro: Marco Guía para el Cartón (Centrado en el área visible entre top-16 y bottom-28) */}
-          <div className="absolute inset-x-0 top-16 bottom-28 flex items-center justify-center pointer-events-none z-20">
+          {/* 1. Centro: Marco Guía para el Cartón (Centrado en el área visible con despeje inferior amplio) */}
+          <div className="absolute inset-x-0 top-16 bottom-36 sm:bottom-32 flex items-center justify-center pointer-events-none z-20">
             <div
               ref={guideBoxRef}
               className={`relative ${guideWidthClass} aspect-[1/1.52] flex flex-col justify-between transition-all duration-200`}
@@ -530,20 +530,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             </div>
           </div>
 
-          {/* Barra Inferior con Disparador Ergonómico */}
-          <div className="relative z-30 pb-8 sm:pb-6 px-4 flex flex-col items-center justify-center space-y-3">
-            <div
-              className={`text-center backdrop-blur-md text-xs py-1.5 px-4 rounded-full border shadow-2xl transition-all duration-300 ${
-                isAligned
-                  ? 'bg-emerald-950/90 text-emerald-200 border-emerald-400/80 font-bold'
-                  : 'bg-black/80 text-amber-200 border-amber-400/40 font-medium'
-              }`}
-            >
-              {isAligned
-                ? '✓ ¡4 Marcadores Dentro! Listo para disparar'
-                : 'Mete los 4 cuadros negros del cartón dentro de las 4 esquinas 1, 2, 3 y 4'}
-            </div>
-
+          {/* Barra Inferior con Disparador Ergonómico y Texto Debajo */}
+          <div className="relative z-30 pb-4 sm:pb-6 px-4 flex flex-col items-center justify-center space-y-2">
             <button
               onClick={takeSnapshot}
               disabled={isProcessing}
@@ -566,6 +554,19 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                 <Camera className="w-8 h-8 text-white" />
               </div>
             </button>
+
+            {/* Texto informativo ubicado DEBAJO del botón de disparo para nunca tapar las esquinas 3 y 4 ni el botón */}
+            <div
+              className={`text-center backdrop-blur-md text-[11px] sm:text-xs py-1 px-3.5 rounded-full border shadow-2xl transition-all duration-300 max-w-[92vw] ${
+                isAligned
+                  ? 'bg-emerald-950/90 text-emerald-200 border-emerald-400/80 font-bold'
+                  : 'bg-black/85 text-amber-200 border-amber-400/40 font-medium'
+              }`}
+            >
+              {isAligned
+                ? '✓ ¡4 Marcadores Dentro! Presiona el botón para disparar'
+                : 'Mete los 4 cuadros negros dentro de las esquinas 1, 2, 3 y 4'}
+            </div>
           </div>
         </div>
       )}
