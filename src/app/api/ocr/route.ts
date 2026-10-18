@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const DEFAULT_OLLAMA_URL = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
 const DEFAULT_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5-vl:7b';
 
-// Función auxiliar para resolver el modelo exacto disponible en Ollama (qwen2.5-vl -> llava fallback)
+// Función auxiliar para resolver el modelo exacto disponible en Ollama (qwen2.5-vl preferido -> llava fallback)
 async function resolveOllamaModel(ollamaUrl: string, requestedModel: string): Promise<string> {
   try {
     const res = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(2500) });
@@ -11,11 +11,15 @@ async function resolveOllamaModel(ollamaUrl: string, requestedModel: string): Pr
     const data = await res.json();
     const models: string[] = (data.models || []).map((m: any) => m.name || m.model || '');
 
-    // 1. Si LLaVA está disponible (arquitectura CLIP compatible y verificada)
+    // 1. Prioridad máxima: Qwen2.5-VL (estado del arte en OCR manuscrito y visión)
+    const qwenMatch = models.find((m) => m.toLowerCase().includes('qwen'));
+    if (qwenMatch) return qwenMatch;
+
+    // 2. Si LLaVA está disponible (fallback)
     const llavaMatch = models.find((m) => m.toLowerCase().includes('llava'));
     if (llavaMatch) return llavaMatch;
 
-    // 2. Si hay algún otro modelo disponible
+    // 3. Si hay algún otro modelo disponible
     return models[0] || requestedModel;
   } catch {
     return requestedModel;
@@ -125,17 +129,20 @@ export async function POST(req: NextRequest) {
 
     // ESTRATEGIA A: Pipeline de Recortes Enfocados (Crop ROI)
     if (crops && (crops.regionA || crops.regionB || crops.regionC || crops.regionD)) {
-      console.log(`[OCR ROI] Procesando recortes enfocado con modelo ${activeModel}...`);
+      console.log(`[OCR ROI] Procesando recortes enfocados con modelo ${activeModel}...`);
 
       const tasks: Promise<any>[] = [];
 
-      // Región A: Cajetines numéricos (C.C. y No. de Herramienta)
+      // Región A: Cabecera e Identificación (C.C., Operación, No. de Herramienta)
       if (crops.regionA) {
         const promptA = `Look at this high-resolution crop of the tool card header:
-1. 'C.C.': Read the 4 handwritten digits inside the 4 boxes (e.g. 4001, 4002).
-2. 'No. de Herramienta:': Read the tool number written after the 'T' box (e.g. 3167 or T-3167).
+Transcribe ONLY what is physically handwritten by human hand:
+1. 'C.C.': Read the 4 handwritten digits inside the 4 boxes at the top right.
+2. 'Operación': Read the handwritten text or digits written on the underline after 'Operación:'.
+3. 'No. de Herramienta:': Read the tool number written on the line after the 'T' box.
+STRICT RULE: Do NOT invent, extrapolate, or guess values. Transcribe ONLY what is visible. If blank, return "".
 Return JSON only:
-{"centroCostos": "", "numeroHerramienta": ""}`;
+{"centroCostos": "", "operacion": "", "numeroHerramienta": ""}`;
 
         tasks.push(
           queryOllamaVision(ollamaUrl, activeModel, promptA, crops.regionA)
@@ -150,14 +157,16 @@ Return JSON only:
         );
       }
 
-      // Región B: Operación, Máquina y Tiempo de Vida Útil
+      // Región B: Parámetros (Máquina, Husillo, Tiempo de Vida Útil)
       if (crops.regionB) {
-        const promptB = `Look at this crop:
-1. 'Operación:': Read the handwritten text or numbers written on the underline after 'Operación:' (e.g. 20).
-2. 'Máquina (1-10):': Read the single machine number written on the line (e.g. 3).
-3. 'Tiempo de vida útil': Read the piece count number written on the line (e.g. 1000 or 1400).
+        const promptB = `Look at this crop of the machine and tool life section:
+Transcribe ONLY what is physically handwritten or marked:
+1. 'Máquina': Read the single handwritten machine number written on the line after 'Máquina (1-10):'.
+2. 'Husillo': Look at boxes 1, 2, 3, 4. If one box is crossed out or marked with an X, return its number ('1', '2', '3', or '4'). Otherwise return "".
+3. 'Tiempo de vida útil': Read the piece count number written on the line for tool life ("Tiempo de vida útil" or "Tiempo de vida logrado").
+STRICT RULE: Do NOT invent numbers. If a field is blank, return "".
 Return JSON only:
-{"operacion": "", "maquina": "", "tiempoVidaUtil": ""}`;
+{"maquina": "", "husillo": "", "tiempoVidaUtil": ""}`;
 
         tasks.push(
           queryOllamaVision(ollamaUrl, activeModel, promptB, crops.regionB)
@@ -174,8 +183,9 @@ Return JSON only:
 
       // Región C: Observaciones
       if (crops.regionC) {
-        const promptC = `Look at this crop containing the Observaciones box.
-Transcribe the handwritten text written inside the box (e.g. 'buena calidad' or 'Desgaste severo').
+        const promptC = `Look at this crop containing the Observaciones box:
+Transcribe the handwritten text written inside the white box.
+STRICT RULE: Transcribe ONLY the actual handwritten words. Do NOT invent phrases or examples. If empty or blank, return "".
 Return JSON only:
 {"observaciones": ""}`;
 
@@ -192,13 +202,15 @@ Return JSON only:
         );
       }
 
-      // Región D: Fecha y Nombre
+      // Región D: Fecha, Turno y Nombre
       if (crops.regionD) {
-        const promptD = `Look at this crop:
-1. 'Fecha:': Read the handwritten date (written as DD/MM/YYYY, YYYY/MM/DD, or DD-MM-YYYY).
-2. 'Nombre del Operador:': Read the handwritten person name written on the line (e.g. Omar Chavez, Diego Hdz).
+        const promptD = `Look at this crop containing the control section:
+1. 'Fecha': Read the handwritten date as written.
+2. 'Turno': Look at boxes 1, 2, 3. If one has an X or cross, return its number ('1', '2', or '3').
+3. 'Nombre': Read the handwritten operator name written on the line after 'Nombre'.
+STRICT RULE: Transcribe ONLY what is physically written. Do NOT invent names, dates, or values.
 Return JSON only:
-{"fecha": "", "nombre": ""}`;
+{"fecha": "", "turno": "", "nombre": ""}`;
 
         tasks.push(
           queryOllamaVision(ollamaUrl, activeModel, promptD, crops.regionD)
@@ -208,6 +220,28 @@ Return JSON only:
             })
             .catch((err) => {
               console.warn('[OCR ROI Region D error]:', err.message);
+              return {};
+            })
+        );
+      }
+
+      // Región Motivos: 12 Casillas de Desmontaje (Solo Tarjeta Naranja)
+      if (crops.regionMotivos) {
+        const promptMotivos = `Look at this crop of the 12 checkboxes under "MOTIVO DE DESMONTAJE":
+Identify which single reason is marked with a pen cross or X:
+Options: Rotura, Formación de rebaba, Rugosidad alta, Rugosidad baja, Diámetro grande, Diámetro pequeño, Ángulo de especificación, Forma fuera de especificación, Despostilladura, Análisis de herramientas necesario, Fallo de operador, Fallo de máquina.
+STRICT RULE: Return ONLY the exact name from the list that is checked. If none or unclear, return "".
+Return JSON only:
+{"motivoDesmontaje": ""}`;
+
+        tasks.push(
+          queryOllamaVision(ollamaUrl, activeModel, promptMotivos, crops.regionMotivos)
+            .then((res) => {
+              rawOutputCombined += `\n[Region Motivos]: ${res}`;
+              return parseJsonSafe(res);
+            })
+            .catch((err) => {
+              console.warn('[OCR ROI Region Motivos error]:', err.message);
               return {};
             })
         );
@@ -275,17 +309,19 @@ function buildOcrPrompt(cardType: string): string {
     return `You are an expert industrial handwriting OCR transcription system for Volkswagen de México factory cards.
 Carefully examine this cropped HSK 63 Orange Tool Control Card (Cartoncillo Naranja de Desmontaje) strictly in visual order from top to bottom:
 
-1. Top-Right: 'C.C.' has 4 numbered boxes. Read the 4 handwritten digits (typically starts with 4, e.g., 4001).
-2. 'Operación:': Read the handwritten text or digits written on the underline after 'Operación:' (e.g., 20).
-3. 'No. de Herramienta:': Read the tool ID after the 'T' box (e.g., T-3167 or 3167).
+1. Top-Right: 'C.C.' has 4 numbered boxes. Read the 4 handwritten digits inside the boxes.
+2. 'Operación:': Read the handwritten text or digits written on the underline after 'Operación:'.
+3. 'No. de Herramienta:': Read the tool ID or number written after the 'T' box.
 4. 'Máquina (1-10):': Read the single machine number written on the line.
 5. 'Husillo (1-4)': Look at boxes 1, 2, 3, 4. Identify which box number is marked with an X or crossed out (return '1', '2', '3', or '4').
 6. 'Tiempo de vida útil logrado:': Read the number of pieces written on the line.
 7. 'MOTIVO DE DESMONTAJE (MARCAR CON X)': Identify which of the 12 reasons is marked with an X: Rotura, Formación de rebaba, Rugosidad alta, Rugosidad baja, Diámetro grande, Diámetro pequeño, Ángulo de especificación, Forma fuera de especificación, Despostilladura, Análisis de herramientas necesario, Fallo de operador, Fallo de máquina.
 8. 'OBSERVACIONES / DETALLES DE FALLA:': Read the handwritten text inside the white box.
-9. 'Fecha:': Read the handwritten date (format YYYY/MM/DD or DD/MM/YYYY).
+9. 'Fecha:': Read the handwritten date as written.
 10. 'Turno:': Look at boxes 1, 2, 3. Identify which shift box number has an X (return '1', '2', or '3').
 11. 'Nombre del Operador:': Read the full handwritten person name written on the line.
+
+STRICT RULE: Transcribe ONLY what is physically written. Do NOT guess or invent numbers or text. If empty, return "".
 
 Transcribe the fields into a valid JSON object with these exact keys:
 {
@@ -309,16 +345,18 @@ Return ONLY the raw JSON object. No explanations.`;
   return `You are an expert industrial handwriting OCR transcription system for Volkswagen de México factory cards.
 Carefully examine this cropped HSK 63 Green Tool Control Card (Cartoncillo Verde Inicial / Seguimiento) strictly in visual order from top to bottom:
 
-1. Top-Right: 'C.C.' has 4 numbered boxes. Read the 4 handwritten digits (typically starts with 4, e.g., 4001).
-2. 'Operación:': Read the handwritten text or digits written on the underline after 'Operación:' (e.g., 20).
-3. 'No. de Herramienta:': Read the tool ID after the 'T' box (e.g., T-3167 or 3167).
+1. Top-Right: 'C.C.' has 4 numbered boxes. Read the 4 handwritten digits inside the boxes.
+2. 'Operación:': Read the handwritten text or digits written on the underline after 'Operación:'.
+3. 'No. de Herramienta:': Read the tool ID or number written after the 'T' box.
 4. 'Máquina (1-10):': Read the single machine number written on the line.
 5. 'Husillo (1-4)': Look at boxes 1, 2, 3, 4. Identify which box number is marked with an X or crossed out (return '1', '2', '3', or '4').
 6. 'Tiempo de vida útil:': Read the number of pieces written on the line.
 7. 'OBSERVACIONES DE PRODUCCIÓN / CALIDAD:': Read the handwritten text inside the white box.
-8. 'Fecha:': Read the handwritten date (format YYYY/MM/DD or DD/MM/YYYY).
+8. 'Fecha:': Read the handwritten date as written.
 9. 'Turno:': Look at boxes 1, 2, 3. Identify which shift box number has an X (return '1', '2', or '3').
 10. 'Nombre del Operador:': Read the full handwritten person name written on the line.
+
+STRICT RULE: Transcribe ONLY what is physically written. Do NOT guess or invent numbers or text. If empty, return "".
 
 Transcribe the fields into a valid JSON object with these exact keys:
 {

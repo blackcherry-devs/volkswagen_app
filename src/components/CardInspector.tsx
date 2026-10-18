@@ -71,9 +71,15 @@ export const CardInspector: React.FC<CardInspectorProps> = ({
     return () => window.removeEventListener('vw-coordinates-updated', handleUpdate);
   }, [cardType]);
 
-  const [corners, setCorners] = useState<CardCorners>(
-    cardType === 'naranja' ? { ...DEFAULT_CORNERS_NARANJA } : { ...DEFAULT_CORNERS_VERDE }
-  );
+  // Esquinas iniciales canónicas de los 4 marcadores fiduciales
+  const CANONICAL_MARKER_CORNERS: CardCorners = {
+    topLeft: { x: 0.04, y: 0.04 },
+    topRight: { x: 0.96, y: 0.04 },
+    bottomLeft: { x: 0.04, y: 0.96 },
+    bottomRight: { x: 0.96, y: 0.96 },
+  };
+
+  const [corners, setCorners] = useState<CardCorners>(CANONICAL_MARKER_CORNERS);
   const [isDetecting, setIsDetecting] = useState<boolean>(false);
   const [isWarping, setIsWarping] = useState<boolean>(false);
   const [draggingCorner, setDraggingCorner] = useState<keyof CardCorners | null>(null);
@@ -82,53 +88,39 @@ export const CardInspector: React.FC<CardInspectorProps> = ({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Auto-detección de esquinas cuando se carga una imagen nueva
+  // Inicializar o restablecer esquinas al cambiar de imagen o tipo de tarjeta
   useEffect(() => {
     if (!imageUrl) return;
-
-    let isMounted = true;
-    setIsDetecting(true);
-
-    detectCardCorners(imageUrl, cardType)
-      .then((detected) => {
-        if (isMounted) {
-          setCorners(detected);
-          setStatusMessage('Esquinas detectadas y alineadas automáticamente.');
-          setTimeout(() => {
-            if (isMounted) setStatusMessage(null);
-          }, 2500);
-        }
-      })
-      .catch((err) => {
-        console.warn('Error al auto-detectar esquinas:', err);
-      })
-      .finally(() => {
-        if (isMounted) setIsDetecting(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
+    // Las fotos tomadas con el marco guía ya tienen los marcadores en las 4 esquinas exteriores.
+    // Usamos las esquinas canónicas para evitar que el filtro de color desalinee los recuadros azules.
+    setCorners(CANONICAL_MARKER_CORNERS);
   }, [imageUrl, cardType]);
 
   const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.25, 2.5));
   const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.25, 0.75));
   const handleResetZoom = () => setZoomLevel(1);
 
-  // Re-ejecutar detección automática bajo demanda
+  // Re-ejecutar detección automática por color bajo demanda explícita del usuario
   const handleReDetectCorners = async () => {
     if (!imageUrl || isDetecting) return;
     setIsDetecting(true);
     try {
       const detected = await detectCardCorners(imageUrl, cardType);
       setCorners(detected);
-      setStatusMessage('¡Esquinas recalibradas con éxito!');
+      setStatusMessage('¡Esquinas recalibradas por color!');
       setTimeout(() => setStatusMessage(null), 2000);
     } catch {
-      setStatusMessage('No se pudieron detectar marcas. Usa los controles manuales.');
+      setStatusMessage('No se detectaron marcas. Usa los círculos verdes manuales.');
     } finally {
       setIsDetecting(false);
     }
+  };
+
+  // Restablecer esquinas a los 4 marcadores canónicos
+  const handleResetToMarkers = () => {
+    setCorners(CANONICAL_MARKER_CORNERS);
+    setStatusMessage('Mirillas centradas en los 4 marcadores fiduciales.');
+    setTimeout(() => setStatusMessage(null), 1500);
   };
 
   // Ajustar esquinas a los bordes completos
@@ -288,10 +280,19 @@ export const CardInspector: React.FC<CardInspectorProps> = ({
           {imageUrl && (
             <>
               <button
+                onClick={handleResetToMarkers}
+                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-[11px] font-semibold transition flex items-center space-x-1 active:scale-95"
+                title="Centrar mirillas en los 4 marcadores canónicos del cartón"
+              >
+                <RotateCcw className="w-3 h-3 text-slate-400" />
+                <span>Marcadores</span>
+              </button>
+
+              <button
                 onClick={handleReDetectCorners}
                 disabled={isDetecting}
                 className="px-2 py-1 rounded bg-blue-950/70 hover:bg-blue-900/80 border border-blue-800/80 text-blue-300 text-[11px] font-semibold transition flex items-center space-x-1 active:scale-95 disabled:opacity-50"
-                title="Detectar esquinas automáticamente"
+                title="Detectar esquinas automáticamente por color"
               >
                 <Sparkles className={`w-3 h-3 text-blue-400 ${isDetecting ? 'animate-spin' : ''}`} />
                 <span>Auto-Detectar</span>
@@ -310,10 +311,10 @@ export const CardInspector: React.FC<CardInspectorProps> = ({
               {onReExtractOcr && (
                 <button
                   onClick={() => onReExtractOcr(imageUrl, corners)}
-                  className="px-2 py-1 rounded bg-emerald-950/70 hover:bg-emerald-900/80 border border-emerald-800/80 text-emerald-300 text-[11px] font-semibold transition flex items-center space-x-1 active:scale-95"
-                  title="Re-extraer campos con IA y casillas según la calibración de esquinas actual"
+                  className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold shadow-md shadow-emerald-500/30 transition flex items-center space-x-1.5 active:scale-95"
+                  title="Re-extraer campos con visión local usando las 4 mirillas actuales"
                 >
-                  <RefreshCw className="w-3 h-3 text-emerald-400" />
+                  <RefreshCw className="w-3.5 h-3.5 text-white" />
                   <span>Re-Extraer IA</span>
                 </button>
               )}

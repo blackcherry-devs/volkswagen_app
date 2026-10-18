@@ -103,22 +103,48 @@ export async function runOcrRecognition(
     if (data.success && data.data) {
       if (onProgress) onProgress('¡Texto extraído con éxito por visión local!');
 
-      // Fusionar resultados de checkboxes algorítmicos con texto extraído por Ollama
+      // Fusionar resultados de checkboxes algorítmicos con texto extraído por Ollama de forma inteligente
       const mergedData = { ...data.data };
       const confidences = { ...(data.confidences || {}) };
 
       if (checkboxResult) {
+        // Husillo: Si Ollama detectó un husillo válido con visión ('1' | '2' | '3' | '4'),
+        // solo sobreescribir si el detector de densidad tiene un contraste dominante evidente
         if (checkboxResult.husillo) {
-          mergedData.husillo = checkboxResult.husillo;
-          confidences.husillo = 98;
+          const husilloDensities = Object.values(checkboxResult.densities.husillo || {});
+          const maxD = Math.max(...husilloDensities, 0);
+          const avgD = husilloDensities.length > 0
+            ? husilloDensities.reduce((a, b) => a + b, 0) / husilloDensities.length
+            : 0;
+          if (!mergedData.husillo || (maxD > 0.12 && maxD > avgD * 1.35)) {
+            mergedData.husillo = checkboxResult.husillo;
+            confidences.husillo = 96;
+          }
         }
+
+        // Turno: Detección algorítmica muy confiable en las 3 casillas
         if (checkboxResult.turno) {
-          mergedData.turno = checkboxResult.turno;
-          confidences.turno = 98;
+          if (!mergedData.turno || (confidences.turno ?? 0) < 80) {
+            mergedData.turno = checkboxResult.turno;
+            confidences.turno = 98;
+          }
         }
-        if (cardType === 'naranja' && checkboxResult.motivoDesmontaje) {
-          (mergedData as OrangeCardData).motivoDesmontaje = checkboxResult.motivoDesmontaje;
-          confidences.motivoDesmontaje = 98;
+
+        // Motivo de desmontaje (solo naranja)
+        if (cardType === 'naranja') {
+          const orange = mergedData as OrangeCardData;
+          if (checkboxResult.motivoDesmontaje) {
+            const motivoDensities = Object.values(checkboxResult.densities.motivoDesmontaje || {});
+            const maxMD = Math.max(...motivoDensities, 0);
+            const avgMD = motivoDensities.length > 0
+              ? motivoDensities.reduce((a, b) => a + b, 0) / motivoDensities.length
+              : 0;
+            // Si la visión de Ollama no detectó o si el detector algorítmico tiene un pico de tinta claro
+            if (!orange.motivoDesmontaje || (maxMD > 0.14 && maxMD > avgMD * 1.5)) {
+              orange.motivoDesmontaje = checkboxResult.motivoDesmontaje;
+              confidences.motivoDesmontaje = 96;
+            }
+          }
         }
       }
 

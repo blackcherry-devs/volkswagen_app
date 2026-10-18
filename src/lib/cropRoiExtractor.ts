@@ -3,10 +3,11 @@ import { getTemplate } from '@/lib/templates';
 import { CardCorners, DEFAULT_CORNERS_NARANJA, DEFAULT_CORNERS_VERDE, interpolatePoint } from '@/lib/cornerDetection';
 
 export interface CardCrops {
-  regionA: string; // Base64: Cajetines numéricos (C.C. y No. de Herramienta)
-  regionB: string; // Base64: Operación, Máquina y Tiempo de Vida Útil
+  regionA: string; // Base64: Cabecera e Identificación (C.C., Operación, No. de Herramienta)
+  regionB: string; // Base64: Parámetros de Operación (Máquina, Husillo, Tiempo de Vida Útil)
   regionC: string; // Base64: Observaciones / Detalles manuscritos
-  regionD: string; // Base64: Fecha y Nombre del Operador
+  regionD: string; // Base64: Control Final (Fecha, Turno, Nombre del Operador)
+  regionMotivos?: string; // Base64: 12 Casillas de Motivo de Desmontaje (sólo naranja)
 }
 
 function loadHtmlImage(src: string): Promise<HTMLImageElement> {
@@ -71,11 +72,11 @@ export async function extractTextRegionCrops(
     v: number,
     uw: number,
     vh: number,
-    paddingRatio = 0.02
+    paddingRatio = 0.03
   ): string => {
-    // Añadir margen de seguridad alrededor del texto
-    const padU = uw * paddingRatio;
-    const padV = vh * paddingRatio;
+    // Añadir margen de seguridad alrededor del texto para compensar ligeros desfasajes
+    const padU = Math.max(0.015, uw * paddingRatio);
+    const padV = Math.max(0.012, vh * paddingRatio);
 
     const u0 = Math.max(0, u - padU);
     const v0 = Math.max(0, v - padV);
@@ -97,7 +98,7 @@ export async function extractTextRegionCrops(
 
     if (cropCtx) {
       cropCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
-      return cropCanvas.toDataURL('image/jpeg', 0.92);
+      return cropCanvas.toDataURL('image/jpeg', 0.94);
     }
     return '';
   };
@@ -109,52 +110,79 @@ export async function extractTextRegionCrops(
     vh: normH / (yMax - yMin),
   });
 
-  // --- REGIÓN A: Centro de Costos y No. de Herramienta ---
-  // Abarca desde la cabecera / C.C. hasta No. de Herramienta
+  // --- REGIÓN A: Cabecera e Identificación ---
+  // Abarca en estricto orden visual:
+  // 1) C.C. (Centro de Costos)
+  // 2) Operación
+  // 3) No. de Herramienta
   const ccBox = template.fields?.centroCostos;
+  const opBox = template.fields?.operacion;
   const numBox = template.fields?.numeroHerramienta;
-  const ccUV = ccBox ? getUV(ccBox.x, ccBox.y, ccBox.width, ccBox.height) : { u: 0.5, v: 0.04, uw: 0.45, vh: 0.08 };
+
+  const ccUV = ccBox ? getUV(ccBox.x, ccBox.y, ccBox.width, ccBox.height) : { u: 0.5, v: 0.02, uw: 0.45, vh: 0.08 };
   const numUV = numBox ? getUV(numBox.x, numBox.y, numBox.width, numBox.height) : { u: 0.05, v: 0.26, uw: 0.9, vh: 0.08 };
 
-  const regA_U = 0.03;
-  const regA_V = Math.max(0, ccUV.v - 0.02);
-  const regA_UW = 0.94;
-  const regA_VH = Math.max(0.25, (numUV.v + numUV.vh) - regA_V + 0.02);
-  const regionA = cropSubRegion(regA_U, regA_V, regA_UW, regA_VH, 0.01);
+  const regA_U = 0.02;
+  const regA_V = Math.max(0, ccUV.v - 0.025);
+  const regA_UW = 0.96;
+  const regA_VH = Math.max(0.24, (numUV.v + numUV.vh) - regA_V + 0.025);
+  const regionA = cropSubRegion(regA_U, regA_V, regA_UW, regA_VH, 0.02);
 
-  // --- REGIÓN B: Operación, Máquina y Tiempo de Vida Útil ---
-  const opBox = template.fields?.operacion;
+  // --- REGIÓN B: Parámetros de Máquina, Husillo y Vida Útil ---
+  // Comienza INMEDIATAMENTE después de Herramienta y abarca:
+  // 1) Máquina (1-10) y Husillo (1-4)
+  // 2) Tiempo de Vida Útil
+  // ¡NO incluye el número de herramienta para evitar confusiones de números!
+  const maqBox = template.fields?.maquina;
   const vidaBox = template.fields?.tiempoVidaUtil;
-  const opUV = opBox ? getUV(opBox.x, opBox.y, opBox.width, opBox.height) : { u: 0.05, v: 0.16, uw: 0.9, vh: 0.07 };
-  const vidaUV = vidaBox ? getUV(vidaBox.x, vidaBox.y, vidaBox.width, vidaBox.height) : { u: 0.05, v: 0.45, uw: 0.9, vh: 0.07 };
 
-  const regB_U = 0.03;
-  const regB_V = Math.max(0, opUV.v - 0.02);
-  const regB_UW = 0.94;
-  const regB_VH = Math.max(0.30, (vidaUV.v + vidaUV.vh) - regB_V + 0.02);
-  const regionB = cropSubRegion(regB_U, regB_V, regB_UW, regB_VH, 0.01);
+  const maqUV = maqBox ? getUV(maqBox.x, maqBox.y, maqBox.width, maqBox.height) : { u: 0.05, v: 0.33, uw: 0.9, vh: 0.06 };
+  const vidaUV = vidaBox ? getUV(vidaBox.x, vidaBox.y, vidaBox.width, vidaBox.height) : { u: 0.05, v: 0.43, uw: 0.9, vh: 0.08 };
+
+  const regB_U = 0.02;
+  const regB_V = Math.max(0, maqUV.v - 0.025);
+  const regB_UW = 0.96;
+  const regB_VH = Math.max(0.14, (vidaUV.v + vidaUV.vh) - regB_V + 0.025);
+  const regionB = cropSubRegion(regB_U, regB_V, regB_UW, regB_VH, 0.02);
 
   // --- REGIÓN C: Observaciones / Detalles manuscritos ---
   const obsBox = template.fields?.observaciones;
   const obsUV = obsBox ? getUV(obsBox.x, obsBox.y, obsBox.width, obsBox.height) : { u: 0.04, v: 0.65, uw: 0.92, vh: 0.12 };
-  const regionC = cropSubRegion(0.03, Math.max(0, obsUV.v - 0.02), 0.94, obsUV.vh + 0.04, 0.02);
+  const regionC = cropSubRegion(0.02, Math.max(0, obsUV.v - 0.02), 0.96, obsUV.vh + 0.04, 0.03);
 
-  // --- REGIÓN D: Fecha y Nombre del Operador ---
+  // --- REGIÓN D: Fecha, Turno y Nombre del Operador ---
   const fechaBox = template.fields?.fecha;
   const nomBox = template.fields?.nombre;
-  const fechaUV = fechaBox ? getUV(fechaBox.x, fechaBox.y, fechaBox.width, fechaBox.height) : { u: 0.05, v: 0.78, uw: 0.9, vh: 0.06 };
+  const fechaUV = fechaBox ? getUV(fechaBox.x, fechaBox.y, fechaBox.width, fechaBox.height) : { u: 0.05, v: 0.76, uw: 0.9, vh: 0.06 };
   const nomUV = nomBox ? getUV(nomBox.x, nomBox.y, nomBox.width, nomBox.height) : { u: 0.05, v: 0.88, uw: 0.9, vh: 0.07 };
 
-  const regD_U = 0.03;
-  const regD_V = Math.max(0, fechaUV.v - 0.02);
-  const regD_UW = 0.94;
+  const regD_U = 0.02;
+  const regD_V = Math.max(0, fechaUV.v - 0.025);
+  const regD_UW = 0.96;
   const regD_VH = Math.max(0.18, (nomUV.v + nomUV.vh) - regD_V + 0.03);
-  const regionD = cropSubRegion(regD_U, regD_V, regD_UW, regD_VH, 0.01);
+  const regionD = cropSubRegion(regD_U, regD_V, regD_UW, regD_VH, 0.02);
+
+  // --- REGIÓN MOTIVOS: 12 Casillas de Motivo de Desmontaje (Solo Tarjeta Naranja) ---
+  let regionMotivos: string | undefined = undefined;
+  if (cardType === 'naranja') {
+    const motivoBox = template.fields?.motivoDesmontaje;
+    if (motivoBox) {
+      const motivoUV = getUV(motivoBox.x, motivoBox.y, motivoBox.width, motivoBox.height);
+      regionMotivos = cropSubRegion(
+        0.02,
+        Math.max(0, motivoUV.v - 0.02),
+        0.96,
+        motivoUV.vh + 0.04,
+        0.02
+      );
+    }
+  }
 
   return {
     regionA,
     regionB,
     regionC,
     regionD,
+    regionMotivos,
   };
 }

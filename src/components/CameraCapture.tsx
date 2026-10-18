@@ -3,11 +3,11 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Camera, Upload, RefreshCw, Sparkles, AlertCircle, CheckCircle2, Smartphone, Video, X, Check, Zap, ZapOff } from 'lucide-react';
 import { CardType } from '@/types/card';
-import { detectCardCorners, warpAndCropCard } from '@/lib/cornerDetection';
+import { CardCorners, detectCardCorners, warpAndCropCard } from '@/lib/cornerDetection';
 
 interface CameraCaptureProps {
   cardType: CardType;
-  onImageSelected: (imageDataUrl: string, autoTriggerExtract?: boolean) => void;
+  onImageSelected: (imageDataUrl: string, autoTriggerExtract?: boolean, corners?: CardCorners) => void;
   isProcessing: boolean;
 }
 
@@ -324,7 +324,15 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
 
     const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
     stopCamera();
-    onImageSelected(dataUrl, true);
+
+    // Las fotos tomadas con el marco guía ya tienen los marcadores en las 4 esquinas de la imagen recortada
+    const cameraCorners: CardCorners = {
+      topLeft: { x: 0.04, y: 0.04 },
+      topRight: { x: 0.96, y: 0.04 },
+      bottomLeft: { x: 0.04, y: 0.96 },
+      bottomRight: { x: 0.96, y: 0.96 },
+    };
+    onImageSelected(dataUrl, true, cameraCorners);
   };
 
   // Manejar archivo subido desde el explorador o cámara móvil nativa
@@ -347,7 +355,13 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
 
         if (hasMargins) {
           const croppedUrl = await warpAndCropCard(dataUrl, corners, 800, 1216);
-          onImageSelected(croppedUrl, true);
+          const canonical: CardCorners = {
+            topLeft: { x: 0.04, y: 0.04 },
+            topRight: { x: 0.96, y: 0.04 },
+            bottomLeft: { x: 0.04, y: 0.96 },
+            bottomRight: { x: 0.96, y: 0.96 },
+          };
+          onImageSelected(croppedUrl, true, canonical);
           return;
         }
       } catch (err) {

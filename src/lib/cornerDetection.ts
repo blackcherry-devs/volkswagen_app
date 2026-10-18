@@ -12,17 +12,17 @@ export interface CardCorners {
 
 // Valores canónicos por defecto para cartoncillos HSK 63
 export const DEFAULT_CORNERS_NARANJA: CardCorners = {
-  topLeft: { x: 0.04, y: 0.05 },
-  topRight: { x: 0.96, y: 0.05 },
-  bottomLeft: { x: 0.04, y: 0.95 },
-  bottomRight: { x: 0.96, y: 0.95 },
+  topLeft: { x: 0.04, y: 0.04 },
+  topRight: { x: 0.96, y: 0.04 },
+  bottomLeft: { x: 0.04, y: 0.96 },
+  bottomRight: { x: 0.96, y: 0.96 },
 };
 
 export const DEFAULT_CORNERS_VERDE: CardCorners = {
-  topLeft: { x: 0.04, y: 0.05 },
-  topRight: { x: 0.96, y: 0.05 },
-  bottomLeft: { x: 0.04, y: 0.95 },
-  bottomRight: { x: 0.96, y: 0.95 },
+  topLeft: { x: 0.04, y: 0.04 },
+  topRight: { x: 0.96, y: 0.04 },
+  bottomLeft: { x: 0.04, y: 0.96 },
+  bottomRight: { x: 0.96, y: 0.96 },
 };
 
 /**

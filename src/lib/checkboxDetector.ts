@@ -160,12 +160,12 @@ export async function detectCheckboxesFromImage(
     const origin = toCanvasPx(husilloBox.x, husilloBox.y);
     const dims = toCanvasDims(husilloBox.width, husilloBox.height);
 
-    // 4 casillas distribuidas horizontalmente
+    // 4 casillas distribuidas horizontalmente (28px de ancho con espacios de 14px)
     const boxRatios = [
-      { key: '1', relX: 0.00, relW: 0.20 },
-      { key: '2', relX: 0.27, relW: 0.20 },
-      { key: '3', relX: 0.54, relW: 0.20 },
-      { key: '4', relX: 0.80, relW: 0.20 },
+      { key: '1', relX: 0.000, relW: 0.182 },
+      { key: '2', relX: 0.272, relW: 0.182 },
+      { key: '3', relX: 0.545, relW: 0.182 },
+      { key: '4', relX: 0.818, relW: 0.182 },
     ];
 
     let bestKey = '';
@@ -246,11 +246,11 @@ export async function detectCheckboxesFromImage(
         const isCol2 = i >= 6;
         const rowIndex = isCol2 ? i - 6 : i;
 
-        // Sub-coordenadas de la casilla dentro del contenedor
-        const colRelX = isCol2 ? 0.51 : 0.024;
-        const rowRelY = 0.19 + rowIndex * 0.13;
-        const boxRelW = 0.055;
-        const boxRelH = 0.105;
+        // Sub-coordenadas de la casilla dentro del contenedor (casilla de 18x18 px en contenedor de 664x175 px)
+        const colRelX = isCol2 ? 0.512 : 0.024;
+        const rowRelY = 0.194 + rowIndex * 0.126;
+        const boxRelW = 0.028; // Ancho exacto de la casilla de 18px (evita tocar las letras del texto a la derecha)
+        const boxRelH = 0.102; // Alto exacto de la casilla de 18px
 
         const px = origin.x + dims.w * colRelX;
         const py = origin.y + dims.h * rowRelY;
