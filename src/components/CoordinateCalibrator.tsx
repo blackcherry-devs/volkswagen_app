@@ -291,12 +291,12 @@ export const CoordinateCalibrator: React.FC<CoordinateCalibratorProps> = ({ onNo
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Columna Izquierda: Vista Previa con el Cartón */}
         <div className="lg:col-span-7 bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center relative overflow-hidden select-none">
-          <div className="relative aspect-[80/190] h-[700px] max-w-full">
+          <div className="relative aspect-[80/190] w-full max-w-[320px] sm:max-w-[340px] mx-auto">
             {/* Imagen SVG del cartón */}
             <img
               src={mockImage}
               alt="Cartón Físico"
-              className="w-full h-full object-contain pointer-events-none rounded-lg shadow-2xl"
+              className="w-full h-full block pointer-events-none rounded-lg shadow-2xl"
             />
 
             {/* Capa de Marcadores de Esquina (Verdes ajustables) */}
