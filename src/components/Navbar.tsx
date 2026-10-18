@@ -50,7 +50,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
               <p className="text-[10.5px] text-slate-400 hidden md:flex items-center space-x-1.5 mt-0.5 font-medium">
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Control de Herramientas • Inspección OMR & OpenCV</span>
+                <span>Control de Herramientas • Visión IA Qwen2.5-VL</span>
               </p>
             </div>
           </div>

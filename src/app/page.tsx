@@ -483,7 +483,7 @@ export default function Home() {
               isProcessing={isProcessing}
             />
 
-            {/* Lado a Lado: Visor OpenCV + Formulario Único */}
+            {/* Lado a Lado: Visor del Cartón + Formulario Único */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
               {/* Columna Izquierda: Visor del Cartón con Switcher Naranja/Verde */}
               <div className="lg:col-span-5">
@@ -601,7 +601,7 @@ export default function Home() {
               <div className="space-y-2">
                 <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center space-x-1.5">
                   <Terminal className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Pasos para Activar LLaVA en tu Terminal:</span>
+                  <span>Pasos para Activar Qwen2.5-VL en tu Terminal:</span>
                 </h4>
 
                 <div className="space-y-2 text-xs font-mono">
@@ -619,10 +619,10 @@ export default function Home() {
 
                   <div className="p-2.5 bg-black/60 rounded-lg border border-slate-800">
                     <p className="text-[11px] text-slate-400 font-sans mb-1">
-                      2. Descargar y ejecutar el modelo LLaVA (7B params, ~4.7 GB):
+                      2. Descargar y ejecutar el modelo Qwen2.5-VL (7B vision):
                     </p>
                     <code className="text-amber-300 selection:bg-amber-800">
-                      ollama run llava
+                      ollama run qwen2.5vl
                     </code>
                   </div>
                 </div>

@@ -243,7 +243,7 @@ export const CardInspector: React.FC<CardInspectorProps> = ({
         <div className="flex items-center space-x-2">
           <Crosshair className="w-4 h-4 text-blue-400" />
           <span className="text-xs font-bold text-white uppercase tracking-wider">
-            Visor OpenCV & IA
+            Visor de Cartón & IA
           </span>
           {onSelectCardType && (
             <div className="flex bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[10px]">

@@ -458,30 +458,21 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               </div>
             )}
 
-            {/* Opciones de captura grandes para tocar con los dedos en móvil */}
+            {/* Opciones de captura: Visor en vivo prioritario y Subir Foto */}
             <div className="w-full flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5">
-              {/* Opción 1: Cámara móvil nativa directa */}
-              <label
-                htmlFor="native-camera-input"
+              {/* Opción Principal: Visor WebRTC en vivo con Guía */}
+              <button
+                type="button"
+                onClick={startCamera}
                 className={`flex items-center justify-center space-x-2 px-5 py-3.5 ${
                   isOrange ? 'bg-orange-500 hover:bg-orange-600 active:bg-orange-700' : 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800'
                 } text-white text-xs sm:text-sm font-bold rounded-xl shadow-xl transition active:scale-95 cursor-pointer touch-manipulation select-none`}
               >
-                <Smartphone className="w-4 h-4" />
-                <span>Tomar Foto (Cámara Móvil)</span>
-              </label>
-
-              {/* Opción 2: Visor WebRTC en vivo */}
-              <button
-                type="button"
-                onClick={startCamera}
-                className="flex items-center justify-center space-x-2 px-4 py-3.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 text-xs sm:text-sm font-semibold rounded-xl border border-slate-700 transition active:scale-95 cursor-pointer touch-manipulation select-none"
-              >
-                <Video className="w-4 h-4 text-blue-400" />
+                <Video className="w-4 h-4 text-white" />
                 <span>Visor en Vivo con Guía</span>
               </button>
 
-              {/* Opción 3: Subir de galería */}
+              {/* Opción Secundaria: Subir de galería o archivo */}
               <label
                 htmlFor="file-upload-input"
                 className="flex items-center justify-center space-x-2 px-4 py-3.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 text-xs sm:text-sm font-semibold rounded-xl border border-slate-700 transition active:scale-95 cursor-pointer touch-manipulation select-none"
@@ -491,16 +482,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               </label>
             </div>
 
-            {/* Inputs ocultos enlazados directamente a los labels por ID (visibles en el render tree pero con opacidad 0 para compatibilidad total con iOS Safari) */}
-            <input
-              id="native-camera-input"
-              ref={nativeCameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleFileUpload}
-              className="absolute opacity-0 pointer-events-none w-0 h-0 -z-50 overflow-hidden"
-            />
+            {/* Input oculto enlazado al label de Subir Foto */}
             <input
               id="file-upload-input"
               ref={fileInputRef}
@@ -515,9 +497,9 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         {/* Información de Captura Real */}
         <div className="mt-3 sm:mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
           <div className="flex items-center space-x-2">
-            <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-[11px] sm:text-xs">
-              Modo Real: Toma foto con la cámara o selecciona una imagen de tu galería para procesarla con Ollama LLaVA.
+              Modo En Vivo: Encuadra el cartoncillo con el marco inteligente y procesa con Qwen2.5-VL en local.
             </span>
           </div>
         </div>
