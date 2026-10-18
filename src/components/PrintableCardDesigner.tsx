@@ -15,7 +15,8 @@ export const PrintableCardDesigner: React.FC<PrintableCardDesignerProps> = ({
   setCardType,
 }) => {
   const [showDimensions, setShowDimensions] = useState(true);
-  const [showFiducials, setShowFiducials] = useState(true);
+  // Con Qwen2.5-VL los marcadores fiduciales ya no son necesarios en el cartón físico (OFF por defecto)
+  const [showFiducials, setShowFiducials] = useState(false);
 
   const handlePrint = () => {
     window.print();
@@ -158,7 +159,7 @@ export const PrintableCardDesigner: React.FC<PrintableCardDesignerProps> = ({
             <span>{showDimensions ? 'Ocultar Cotas' : 'Ver Cotas (80×190mm)'}</span>
           </button>
 
-          {/* Toggle de Marcadores OpenCV */}
+          {/* Toggle opcional de Marcadores (Innecesarios con Qwen) */}
           <button
             onClick={() => setShowFiducials(!showFiducials)}
             className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
@@ -166,10 +167,10 @@ export const PrintableCardDesigner: React.FC<PrintableCardDesignerProps> = ({
                 ? 'bg-purple-950/60 text-purple-300 border-purple-500/40'
                 : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
             }`}
-            title="Activar marcadores para escaneo automático por visión computacional"
+            title="Marcadores de esquina (No requeridos con Qwen2.5-VL)"
           >
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>{showFiducials ? 'Marcadores OpenCV: ON' : 'Marcadores: OFF'}</span>
+            <span>{showFiducials ? 'Marcadores Esquina: ON' : 'Marcadores: Innecesarios con Qwen (OFF)'}</span>
           </button>
 
           {/* Botón Imprimir */}

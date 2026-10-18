@@ -32,7 +32,6 @@ export const ExcelTableViewer: React.FC<ExcelTableViewerProps> = ({ savedRecords
         'Turno Inicial (Verde)': d.turnoInicial,
         'Operador Inicial (Verde)': d.nombreOperadorInicial,
         'Vida Útil Inicial (Verde)': d.tiempoVidaUtilInicial || '—',
-        'Observaciones Inicial (Verde)': d.observacionesInicial || '—',
         // Columnas de la Tarjeta Naranja (Desmontaje)
         'Fecha Desmontaje (Naranja)': d.fechaDesmontaje,
         'Turno Desmontaje (Naranja)': d.turnoDesmontaje,
@@ -56,12 +55,11 @@ export const ExcelTableViewer: React.FC<ExcelTableViewerProps> = ({ savedRecords
       { wch: 22 }, // Operación
       { wch: 18 }, // No. Herramienta
       { wch: 10 }, // Máquina
-      { wch: 10 }, // Husillo
+      { wch: 14 }, // Husillo
       { wch: 18 }, // Fecha Inicial
       { wch: 16 }, // Turno Inicial
       { wch: 24 }, // Operador Inicial
       { wch: 18 }, // Vida Útil Inicial
-      { wch: 30 }, // Observaciones Inicial
       { wch: 20 }, // Fecha Desmontaje
       { wch: 18 }, // Turno Desmontaje
       { wch: 24 }, // Operador Desmontaje
@@ -140,7 +138,6 @@ export const ExcelTableViewer: React.FC<ExcelTableViewerProps> = ({ savedRecords
               <th className="px-3 py-3 text-emerald-400 bg-emerald-950/20">Fecha Inicial (Verde)</th>
               <th className="px-3 py-3 text-emerald-400 bg-emerald-950/20">Turno Inicial</th>
               <th className="px-3 py-3 text-emerald-300 bg-emerald-950/20">Operador Inicial (Verde)</th>
-              <th className="px-3 py-3 text-emerald-400/80 bg-emerald-950/20">Obs. Inicial</th>
               {/* Columnas Tarjeta Naranja */}
               <th className="px-3 py-3 text-orange-400 bg-orange-950/20">Fecha Desmontaje (Naranja)</th>
               <th className="px-3 py-3 text-orange-400 bg-orange-950/20">Turno Desmontaje</th>
@@ -155,7 +152,7 @@ export const ExcelTableViewer: React.FC<ExcelTableViewerProps> = ({ savedRecords
             {savedRecords.length === 0 ? (
               <tr>
                 <td
-                  colSpan={19}
+                  colSpan={18}
                   className="px-4 py-12 text-center text-slate-500 italic"
                 >
                   No hay filas guardadas en RUPTURAS TOTAL todavía. Escanea ambas tarjetas (Naranja y Verde) y confirma el formulario.
@@ -186,9 +183,6 @@ export const ExcelTableViewer: React.FC<ExcelTableViewerProps> = ({ savedRecords
                     <td className="px-3 py-2.5 text-emerald-300 bg-emerald-950/10">{d.fechaInicial}</td>
                     <td className="px-3 py-2.5 font-bold text-emerald-400 bg-emerald-950/10">T-{d.turnoInicial}</td>
                     <td className="px-3 py-2.5 text-slate-200 font-sans bg-emerald-950/10">{d.nombreOperadorInicial}</td>
-                    <td className="px-3 py-2.5 text-slate-400 font-sans max-w-[180px] truncate bg-emerald-950/10" title={d.observacionesInicial || ''}>
-                      {d.observacionesInicial || '—'}
-                    </td>
                     {/* Naranja */}
                     <td className="px-3 py-2.5 text-orange-300 bg-orange-950/10">{d.fechaDesmontaje}</td>
                     <td className="px-3 py-2.5 font-bold text-amber-400 bg-orange-950/10">T-{d.turnoDesmontaje}</td>

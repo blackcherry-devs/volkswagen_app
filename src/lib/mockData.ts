@@ -1,4 +1,4 @@
-import { CardType, OrangeCardData, GreenCardData, UnifiedRupturaData, ExtractionResult, MOTIVOS_DESMONTAJE } from '@/types/card';
+import { CardType, OrangeCardData, GreenCardData, UnifiedRupturaData, ExtractionResult, MOTIVOS_DESMONTAJE, getMotivoCodeByName } from '@/types/card';
 
 // ============================================================================
 // CONSTANTES DE TAMAÑO DE FUENTE (FONT-SIZE) PARA TARJETAS / CARTONCILLOS
@@ -7,25 +7,25 @@ import { CardType, OrangeCardData, GreenCardData, UnifiedRupturaData, Extraction
 // ============================================================================
 export const CARD_FONT_CONFIG = {
   // Tamaño principal de las etiquetas de campos ("Operación:", "No. de Herramienta:", etc.)
-  fontSizeLabels: 25,
+  fontSizeLabels: 26,
 
-  // Tamaño de las 12 opciones de "Motivo de Desmontaje" en la tarjeta naranja
-  fontSizeMotivos: 20,
+  // Tamaño de las 12 opciones de "Motivo de Desmontaje" en la tarjeta naranja (aumentado para OCR Qwen)
+  fontSizeMotivos: 22,
 
   // Título del recuadro de motivos de desmontaje
-  fontSizeMotivosTitle: 14,
+  fontSizeMotivosTitle: 16,
 
   // Título de la sección de observaciones
-  fontSizeObservacionesTitle: 17,
+  fontSizeObservacionesTitle: 18,
 
   // Encabezados superiores ("HSK 63", "VOLKSWAGEN", "DE MÉXICO", "C.C.")
-  fontSizeHeaderHsk: 20,
-  fontSizeHeaderTitle: 24,
+  fontSizeHeaderHsk: 21,
+  fontSizeHeaderTitle: 25,
   fontSizeHeaderSubtitle: 13,
-  fontSizeCentroCostosLabel: 18,
+  fontSizeCentroCostosLabel: 20,
 
   // Números en casillas de selección (Husillo 1-4, Turno 1-3)
-  fontSizeOptionNumbers: 16,
+  fontSizeOptionNumbers: 20,
 
   // Tamaño del texto simulado manuscrito / datos rellenados
   fontSizeHandwritten: 30,
@@ -93,62 +93,38 @@ export function generateCardSvgString(
 ): string {
   const isOrange = type === 'naranja';
   const blank = !!options?.blank;
-  const showFiducials = options?.showFiducials !== false;
+  // Con Qwen2.5-VL los marcadores fiduciales ya no son necesarios en el cartón físico (por defecto false)
+  const showFiducials = options?.showFiducials === true;
   const bgColor = isOrange ? '#fa7542' : '#4ea87d';
   const strokeColor = isOrange ? '#c0392b' : '#236543';
   const inkColor = '#0f172a'; // Tinta bolígrafo oscuro industrial
 
-  // Para el cartón naranja: Cuadrícula de 12 casillas marcables en 2 columnas
-  const orangeMotivosCheckboxes = isOrange
+  // Código numérico del motivo (1 al 12) para visualización en mock / tarjeta
+  const motivoCode = !blank && (data as OrangeCardData)?.motivoDesmontaje
+    ? getMotivoCodeByName((data as OrangeCardData).motivoDesmontaje)
+    : null;
+
+  // Para el cartón naranja: Campo limpio de Motivo de Desmontaje con casilla N° (1 al 12)
+  const orangeMotivosSection = isOrange
     ? `
-    <!-- Motivo de Desmontaje (12 casillas en 2 columnas compactas) -->
-    <g transform="translate(68, 1285)">
-      <rect width="664" height="175" rx="8" fill="#ffffff" fill-opacity="0.95" stroke="#000000" stroke-width="2"/>
-      <text x="16" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeMotivosTitle}" font-weight="900" fill="#000000">
-        MOTIVO DE DESMONTAJE (MARCAR CON X):
+    <!-- 5. Motivo de Desmontaje: Casilla N° para recibir el código 1 al 12 (Diseño limpio y espacioso) -->
+    <g transform="translate(70, 1245)">
+      <text x="0" y="24" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
+        Motivo de desmontaje:
       </text>
-
-      <!-- Columna 1 (6 casillas) -->
-      ${MOTIVOS_DESMONTAJE.slice(0, 6)
-        .map((motivo, i) => {
-          const yPos = 34 + i * 22;
-          const isChecked = !blank && (data as OrangeCardData)?.motivoDesmontaje === motivo;
-          return `
-            <g transform="translate(16, ${yPos})">
-              <rect width="18" height="18" fill="#ffffff" stroke="#000000" stroke-width="2" rx="2"/>
-              ${
-                isChecked
-                  ? '<line x1="2" y1="2" x2="16" y2="16" stroke="#000000" stroke-width="3"/><line x1="16" y1="2" x2="2" y2="16" stroke="#000000" stroke-width="3"/>'
-                  : ''
-              }
-              <text x="26" y="15" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeMotivos}" font-weight="${
-                isChecked ? 'bold' : 'normal'
-              }" fill="#000000">${motivo}</text>
-            </g>
-          `;
-        })
-        .join('')}
-
-      <!-- Columna 2 (6 casillas) -->
-      ${MOTIVOS_DESMONTAJE.slice(6, 12)
-        .map((motivo, i) => {
-          const yPos = 34 + i * 22;
-          const isChecked = !blank && (data as OrangeCardData)?.motivoDesmontaje === motivo;
-          return `
-            <g transform="translate(340, ${yPos})">
-              <rect width="18" height="18" fill="#ffffff" stroke="#000000" stroke-width="2" rx="2"/>
-              ${
-                isChecked
-                  ? '<line x1="2" y1="2" x2="16" y2="16" stroke="#000000" stroke-width="3"/><line x1="16" y1="2" x2="2" y2="16" stroke="#000000" stroke-width="3"/>'
-                  : ''
-              }
-              <text x="26" y="15" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeMotivos}" font-weight="${
-                isChecked ? 'bold' : 'normal'
-              }" fill="#000000">${motivo}</text>
-            </g>
-          `;
-        })
-        .join('')}
+      <text x="270" y="24" font-family="sans-serif" font-size="20" font-weight="900" fill="#000000">
+        N°
+      </text>
+      <!-- Casilla amplia para escribir el número del motivo -->
+      <rect x="310" y="-8" width="60" height="46" rx="6" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
+      ${
+        motivoCode
+          ? `<text x="340" y="27" font-family="cursive, 'Brush Script MT', sans-serif" font-size="32" font-weight="bold" fill="${inkColor}" text-anchor="middle">${motivoCode}</text>`
+          : ''
+      }
+      <text x="385" y="24" font-family="sans-serif" font-size="16" font-weight="bold" fill="#475569">
+        (1 - 12)
+      </text>
     </g>
   `
     : '';
@@ -187,7 +163,7 @@ export function generateCardSvgString(
       </text>
     </g>
 
-    <!-- 4 Marcadores Fiduciales OpenCV (Colocados en esquinas despejadas sin tapar HSK ni C.C.) -->
+    <!-- Marcadores Fiduciales Opcionales (Desactivados por defecto porque Qwen lee todo directamente) -->
     ${
       showFiducials
         ? `
@@ -214,7 +190,7 @@ export function generateCardSvgString(
         : ''
     }
 
-    <!-- Encabezado Oficial Limpio (x=70 a x=420 con amplio margen sin colisión) -->
+    <!-- Encabezado Oficial Volkswagen (x=70 a x=400) -->
     <text x="70" y="744" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeHeaderHsk}" font-weight="900" letter-spacing="2" fill="#000000">
       HSK 63
     </text>
@@ -225,22 +201,22 @@ export function generateCardSvgString(
       DE MÉXICO
     </text>
 
-    <!-- Centro de Costos C.C. con Cajetines (x=455 a x=725 sin colisión con fiducial) -->
-    <g transform="translate(455, 750)">
-      <text x="0" y="28" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeCentroCostosLabel}" font-weight="900" fill="#000000">C.C.</text>
+    <!-- Centro de Costos C.C. con Cajetines Ampliados (44x48 px) -->
+    <g transform="translate(435, 740)">
+      <text x="0" y="32" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeCentroCostosLabel}" font-weight="900" fill="#000000">C.C.</text>
       <!-- 4 cajetines de Centro de Costos -->
-      <g transform="translate(50, 0)">
-        <rect x="0" y="0" width="36" height="40" fill="#ffffff" stroke="#000000" stroke-width="2" rx="3"/>
-        <rect x="42" y="0" width="36" height="40" fill="#ffffff" stroke="#000000" stroke-width="2" rx="3"/>
-        <rect x="84" y="0" width="36" height="40" fill="#ffffff" stroke="#000000" stroke-width="2" rx="3"/>
-        <rect x="126" y="0" width="36" height="40" fill="#ffffff" stroke="#000000" stroke-width="2" rx="3"/>
+      <g transform="translate(54, 0)">
+        <rect x="0" y="0" width="44" height="48" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
+        <rect x="52" y="0" width="44" height="48" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
+        <rect x="104" y="0" width="44" height="48" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
+        <rect x="156" y="0" width="44" height="48" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
         ${
           !blank && data?.centroCostos
             ? `
-        <text x="9" y="30" font-family="cursive, 'Brush Script MT', sans-serif" font-size="28" font-weight="bold" fill="${inkColor}">${data.centroCostos[0] || '4'}</text>
-        <text x="51" y="30" font-family="cursive, 'Brush Script MT', sans-serif" font-size="28" font-weight="bold" fill="${inkColor}">${data.centroCostos[1] || '1'}</text>
-        <text x="93" y="30" font-family="cursive, 'Brush Script MT', sans-serif" font-size="28" font-weight="bold" fill="${inkColor}">${data.centroCostos[2] || '2'}</text>
-        <text x="135" y="30" font-family="cursive, 'Brush Script MT', sans-serif" font-size="28" font-weight="bold" fill="${inkColor}">${data.centroCostos[3] || '0'}</text>
+        <text x="12" y="35" font-family="cursive, 'Brush Script MT', sans-serif" font-size="34" font-weight="bold" fill="${inkColor}">${data.centroCostos[0] || '4'}</text>
+        <text x="64" y="35" font-family="cursive, 'Brush Script MT', sans-serif" font-size="34" font-weight="bold" fill="${inkColor}">${data.centroCostos[1] || '1'}</text>
+        <text x="116" y="35" font-family="cursive, 'Brush Script MT', sans-serif" font-size="34" font-weight="bold" fill="${inkColor}">${data.centroCostos[2] || '2'}</text>
+        <text x="168" y="35" font-family="cursive, 'Brush Script MT', sans-serif" font-size="34" font-weight="bold" fill="${inkColor}">${data.centroCostos[3] || '0'}</text>
         `
             : ''
         }
@@ -249,7 +225,7 @@ export function generateCardSvgString(
 
     <!-- CAMPOS DE DATOS: ESPACIADOS DE FORMA EQUILIBRADA Y SIN COLISIONES -->
     <!-- 1. Operación -->
-    <g transform="translate(70, 901)">
+    <g transform="translate(70, ${isOrange ? '880' : '880'})">
       <text x="0" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         Operación:
       </text>
@@ -266,18 +242,18 @@ export function generateCardSvgString(
     </g>
 
     <!-- 2. No. Herramienta (T + 5 números) -->
-    <g transform="translate(70, ${isOrange ? '1012' : '1024'})">
+    <g transform="translate(70, ${isOrange ? '980' : '990'})">
       <text x="0" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         No. de Herramienta:
       </text>
       <!-- Cajetín T -->
-      <rect x="255" y="-1" width="32" height="32" fill="#ffffff" stroke="#000000" stroke-width="2" rx="3"/>
-      <text x="264" y="22" font-family="sans-serif" font-size="19" font-weight="900" fill="#000000">T</text>
-      <line x1="298" y1="26" x2="660" y2="26" stroke="#000000" stroke-width="1.8" stroke-opacity="0.8"/>
+      <rect x="255" y="-1" width="34" height="34" fill="#ffffff" stroke="#000000" stroke-width="2" rx="3"/>
+      <text x="265" y="23" font-family="sans-serif" font-size="20" font-weight="900" fill="#000000">T</text>
+      <line x1="300" y1="26" x2="660" y2="26" stroke="#000000" stroke-width="1.8" stroke-opacity="0.8"/>
       ${
         !blank && data?.numeroHerramienta
           ? `
-      <text x="308" y="19" font-family="cursive, 'Brush Script MT', sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeHandwritten}" font-weight="bold" fill="${inkColor}">
+      <text x="312" y="19" font-family="cursive, 'Brush Script MT', sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeHandwritten}" font-weight="bold" fill="${inkColor}">
         ${data.numeroHerramienta.replace(/^[Tt]-?/, '')}
       </text>
       `
@@ -285,8 +261,8 @@ export function generateCardSvgString(
       }
     </g>
 
-    <!-- 3. Máquina (1 al 10) & Husillo (1 al 4) -->
-    <g transform="translate(70, ${isOrange ? '1113' : '1141'})">
+    <!-- 3. Máquina (1 al 10) & Husillo (1 al 4, con soporte para 1 o más) -->
+    <g transform="translate(70, ${isOrange ? '1060' : '1100'})">
       <text x="0" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         Máquina (1-10):
       </text>
@@ -304,28 +280,40 @@ export function generateCardSvgString(
       <text x="280" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         Husillo (1-4):
       </text>
-      <!-- Casillas 1, 2, 3, 4 -->
-      <g transform="translate(450, 0)">
-        <rect x="0" y="0" width="28" height="28" fill="#ffffff" stroke="#000000" stroke-width="1.8" rx="3"/>
-        <text x="8" y="20" font-size="${CARD_FONT_CONFIG.fontSizeOptionNumbers}" font-family="sans-serif" font-weight="bold">1</text>
-        ${!blank && data?.husillo === '1' ? '<line x1="3" y1="3" x2="25" y2="25" stroke="#000000" stroke-width="3"/><line x1="25" y1="3" x2="3" y2="25" stroke="#000000" stroke-width="3"/>' : ''}
+      <!-- Casillas ampliadas de Husillo 1, 2, 3, 4 con soporte para 1 o varios husillos marcados -->
+      <g transform="translate(440, -3)">
+        <!-- Husillo 1 -->
+        <g transform="translate(0, 0)">
+          <rect x="0" y="0" width="30" height="30" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
+          ${!blank && data?.husillo && String(data.husillo).includes('1') ? '<line x1="4" y1="4" x2="26" y2="26" stroke="#000000" stroke-width="3.5"/><line x1="26" y1="4" x2="4" y2="26" stroke="#000000" stroke-width="3.5"/>' : ''}
+          <text x="36" y="23" font-size="20" font-family="sans-serif" font-weight="900" fill="#000000">1</text>
+        </g>
 
-        <rect x="42" y="0" width="28" height="28" fill="#ffffff" stroke="#000000" stroke-width="1.8" rx="3"/>
-        <text x="50" y="20" font-size="${CARD_FONT_CONFIG.fontSizeOptionNumbers}" font-family="sans-serif" font-weight="bold">2</text>
-        ${!blank && data?.husillo === '2' ? '<line x1="45" y1="3" x2="67" y2="25" stroke="#000000" stroke-width="3"/><line x1="67" y1="3" x2="45" y2="25" stroke="#000000" stroke-width="3"/>' : ''}
+        <!-- Husillo 2 -->
+        <g transform="translate(56, 0)">
+          <rect x="0" y="0" width="30" height="30" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
+          ${!blank && data?.husillo && String(data.husillo).includes('2') ? '<line x1="4" y1="4" x2="26" y2="26" stroke="#000000" stroke-width="3.5"/><line x1="26" y1="4" x2="4" y2="26" stroke="#000000" stroke-width="3.5"/>' : ''}
+          <text x="36" y="23" font-size="20" font-family="sans-serif" font-weight="900" fill="#000000">2</text>
+        </g>
 
-        <rect x="84" y="0" width="28" height="28" fill="#ffffff" stroke="#000000" stroke-width="1.8" rx="3"/>
-        <text x="92" y="20" font-size="${CARD_FONT_CONFIG.fontSizeOptionNumbers}" font-family="sans-serif" font-weight="bold">3</text>
-        ${!blank && data?.husillo === '3' ? '<line x1="87" y1="3" x2="109" y2="25" stroke="#000000" stroke-width="3"/><line x1="109" y1="3" x2="87" y2="25" stroke="#000000" stroke-width="3"/>' : ''}
+        <!-- Husillo 3 -->
+        <g transform="translate(112, 0)">
+          <rect x="0" y="0" width="30" height="30" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
+          ${!blank && data?.husillo && String(data.husillo).includes('3') ? '<line x1="4" y1="4" x2="26" y2="26" stroke="#000000" stroke-width="3.5"/><line x1="26" y1="4" x2="4" y2="26" stroke="#000000" stroke-width="3.5"/>' : ''}
+          <text x="36" y="23" font-size="20" font-family="sans-serif" font-weight="900" fill="#000000">3</text>
+        </g>
 
-        <rect x="126" y="0" width="28" height="28" fill="#ffffff" stroke="#000000" stroke-width="1.8" rx="3"/>
-        <text x="134" y="20" font-size="${CARD_FONT_CONFIG.fontSizeOptionNumbers}" font-family="sans-serif" font-weight="bold">4</text>
-        ${!blank && data?.husillo === '4' ? '<line x1="129" y1="3" x2="151" y2="25" stroke="#000000" stroke-width="3"/><line x1="151" y1="3" x2="129" y2="25" stroke="#000000" stroke-width="3"/>' : ''}
+        <!-- Husillo 4 -->
+        <g transform="translate(168, 0)">
+          <rect x="0" y="0" width="30" height="30" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
+          ${!blank && data?.husillo && String(data.husillo).includes('4') ? '<line x1="4" y1="4" x2="26" y2="26" stroke="#000000" stroke-width="3.5"/><line x1="26" y1="4" x2="4" y2="26" stroke="#000000" stroke-width="3.5"/>' : ''}
+          <text x="36" y="23" font-size="20" font-family="sans-serif" font-weight="900" fill="#000000">4</text>
+        </g>
       </g>
     </g>
 
     <!-- 4. Tiempo de vida útil -->
-    <g transform="translate(70, ${isOrange ? '1213' : '1252'})">
+    <g transform="translate(70, ${isOrange ? '1140' : '1180'})">
       <text x="0" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         ${isOrange ? 'Tiempo de vida útil logrado:' : 'Tiempo de vida útil:'}
       </text>
@@ -341,22 +329,25 @@ export function generateCardSvgString(
       }
     </g>
 
-    ${orangeMotivosCheckboxes}
+    ${orangeMotivosSection}
 
-    <!-- 5. SECCIÓN DE OBSERVACIONES -->
+    <!-- 5. SECCIÓN DE OBSERVACIONES (Solo presente en Tarjeta Naranja, ampliada con 4 renglones) -->
     ${
       isOrange
         ? `
-    <g transform="translate(68, 1490)">
-      <text x="4" y="17" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeObservacionesTitle}" font-weight="900" fill="#000000">
+    <g transform="translate(68, 1330)">
+      <text x="4" y="18" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeObservacionesTitle}" font-weight="900" fill="#000000">
         OBSERVACIONES / DETALLES DE FALLA:
       </text>
-      <rect x="0" y="25" width="664" height="65" rx="6" fill="#ffffff" fill-opacity="0.92" stroke="#000000" stroke-width="1.5"/>
-      <line x1="10" y1="55" x2="654" y2="55" stroke="#cbd5e1" stroke-width="1"/>
+      <rect x="0" y="26" width="664" height="105" rx="8" fill="#ffffff" fill-opacity="0.95" stroke="#000000" stroke-width="2"/>
+      <!-- 4 renglones de escritura (3 líneas guía interiores) -->
+      <line x1="12" y1="52" x2="652" y2="52" stroke="#cbd5e1" stroke-width="1.2" stroke-dasharray="6 3"/>
+      <line x1="12" y1="78" x2="652" y2="78" stroke="#cbd5e1" stroke-width="1.2" stroke-dasharray="6 3"/>
+      <line x1="12" y1="104" x2="652" y2="104" stroke="#cbd5e1" stroke-width="1.2" stroke-dasharray="6 3"/>
       ${
         !blank && (data as OrangeCardData)?.observaciones
           ? `
-      <text x="14" y="47" font-family="cursive, 'Brush Script MT', sans-serif" font-size="22" font-weight="bold" fill="${inkColor}">
+      <text x="16" y="47" font-family="cursive, 'Brush Script MT', sans-serif" font-size="22" font-weight="bold" fill="${inkColor}">
         ${(data as OrangeCardData).observaciones}
       </text>
       `
@@ -364,29 +355,12 @@ export function generateCardSvgString(
       }
     </g>
     `
-        : `
-    <g transform="translate(68, 1364)">
-      <text x="4" y="16" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeObservacionesTitle}" font-weight="900" fill="#000000">
-        OBSERVACIONES DE PRODUCCIÓN / CALIDAD:
-      </text>
-      <rect x="0" y="24" width="664" height="95" rx="6" fill="#ffffff" fill-opacity="0.92" stroke="#000000" stroke-width="1.8"/>
-      <line x1="12" y1="62" x2="652" y2="62" stroke="#cbd5e1" stroke-width="1.2"/>
-      ${
-        !blank && (data as GreenCardData)?.observaciones
-          ? `
-      <text x="16" y="52" font-family="cursive, 'Brush Script MT', sans-serif" font-size="24" font-weight="bold" fill="${inkColor}">
-        ${(data as GreenCardData).observaciones}
-      </text>
-      `
-          : ''
-      }
-    </g>
-    `
+        : ''
     }
 
-    <!-- 6. FILA DE CONTROL: FECHA, TURNO Y NOMBRE -->
+    <!-- 6. FILA DE CONTROL: FECHA, TURNO Y NOMBRE (Con espacio amplio y limpio) -->
     <!-- Fecha -->
-    <g transform="translate(70, ${isOrange ? '1608' : '1525'})">
+    <g transform="translate(70, ${isOrange ? '1545' : '1340'})">
       <text x="0" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         Fecha:
       </text>
@@ -402,28 +376,37 @@ export function generateCardSvgString(
       }
     </g>
 
-    <!-- Turno -->
-    <g transform="translate(70, ${isOrange ? '1668' : '1598'})">
-      <text x="0" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
+    <!-- Turno: Casillas ampliadas de 34x34 px con número exterior nítido (1°, 2°, 3°) -->
+    <g transform="translate(70, ${isOrange ? '1630' : '1465'})">
+      <text x="0" y="24" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         Turno:
       </text>
-      <g transform="translate(95, 0)">
-        <rect x="0" y="0" width="30" height="30" fill="#ffffff" stroke="#000000" stroke-width="1.8" rx="3"/>
-        <text x="9" y="21" font-size="${CARD_FONT_CONFIG.fontSizeOptionNumbers}" font-family="sans-serif" font-weight="bold">1</text>
-        ${!blank && data?.turno === '1' ? '<line x1="3" y1="3" x2="27" y2="27" stroke="#000000" stroke-width="3"/><line x1="27" y1="3" x2="3" y2="27" stroke="#000000" stroke-width="3"/>' : ''}
+      <g transform="translate(95, -4)">
+        <!-- Turno 1 -->
+        <g transform="translate(0, 0)">
+          <rect x="0" y="0" width="34" height="34" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
+          ${!blank && data?.turno === '1' ? '<line x1="4" y1="4" x2="30" y2="30" stroke="#000000" stroke-width="4"/><line x1="30" y1="4" x2="4" y2="30" stroke="#000000" stroke-width="4"/>' : ''}
+          <text x="42" y="25" font-size="22" font-family="sans-serif" font-weight="900" fill="#000000">1°</text>
+        </g>
 
-        <rect x="50" y="0" width="30" height="30" fill="#ffffff" stroke="#000000" stroke-width="1.8" rx="3"/>
-        <text x="59" y="21" font-size="${CARD_FONT_CONFIG.fontSizeOptionNumbers}" font-family="sans-serif" font-weight="bold">2</text>
-        ${!blank && data?.turno === '2' ? '<line x1="53" y1="3" x2="77" y2="27" stroke="#000000" stroke-width="3"/><line x1="77" y1="3" x2="53" y2="27" stroke="#000000" stroke-width="3"/>' : ''}
+        <!-- Turno 2 -->
+        <g transform="translate(95, 0)">
+          <rect x="0" y="0" width="34" height="34" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
+          ${!blank && data?.turno === '2' ? '<line x1="4" y1="4" x2="30" y2="30" stroke="#000000" stroke-width="4"/><line x1="30" y1="4" x2="4" y2="30" stroke="#000000" stroke-width="4"/>' : ''}
+          <text x="42" y="25" font-size="22" font-family="sans-serif" font-weight="900" fill="#000000">2°</text>
+        </g>
 
-        <rect x="100" y="0" width="30" height="30" fill="#ffffff" stroke="#000000" stroke-width="1.8" rx="3"/>
-        <text x="109" y="21" font-size="${CARD_FONT_CONFIG.fontSizeOptionNumbers}" font-family="sans-serif" font-weight="bold">3</text>
-        ${!blank && data?.turno === '3' ? '<line x1="103" y1="3" x2="127" y2="27" stroke="#000000" stroke-width="3"/><line x1="127" y1="3" x2="103" y2="27" stroke="#000000" stroke-width="3"/>' : ''}
+        <!-- Turno 3 -->
+        <g transform="translate(190, 0)">
+          <rect x="0" y="0" width="34" height="34" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
+          ${!blank && data?.turno === '3' ? '<line x1="4" y1="4" x2="30" y2="30" stroke="#000000" stroke-width="4"/><line x1="30" y1="4" x2="4" y2="30" stroke="#000000" stroke-width="4"/>' : ''}
+          <text x="42" y="25" font-size="22" font-family="sans-serif" font-weight="900" fill="#000000">3°</text>
+        </g>
       </g>
     </g>
 
     <!-- Nombre -->
-    <g transform="translate(70, ${isOrange ? '1726' : '1665'})">
+    <g transform="translate(70, ${isOrange ? '1715' : '1590'})">
       <text x="0" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         Nombre del Operador:
       </text>

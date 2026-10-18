@@ -409,28 +409,47 @@ export const VerificationForm: React.FC<VerificationFormProps> = ({
                   value={formData.husillo}
                   onFocus={() => setActiveFieldKey('husillo')}
                   onChange={(e) => handleChange('husillo', e.target.value)}
-                  className={`w-14 bg-slate-900 border text-white font-mono text-sm px-2.5 py-1.5 rounded-lg focus:outline-none ${
+                  className={`w-28 bg-slate-900 border text-white font-mono text-sm px-2.5 py-1.5 rounded-lg focus:outline-none ${
                     sharedMismatches.husillo
                       ? 'border-red-500 focus:border-red-400'
                       : 'border-slate-700 focus:border-purple-500'
                   }`}
-                  placeholder="1-4"
+                  placeholder="Ej: 1, 2"
                 />
                 <div className="flex flex-wrap gap-1.5">
-                  {['1', '2', '3', '4'].map((h) => (
-                    <button
-                      key={h}
-                      type="button"
-                      onClick={() => handleChange('husillo', h)}
-                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition ${
-                        formData.husillo === h
-                          ? 'bg-purple-600 text-white shadow'
-                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
-                      }`}
-                    >
-                      H-{h}
-                    </button>
-                  ))}
+                  {['1', '2', '3', '4'].map((h) => {
+                    const currentValues = formData.husillo
+                      ? formData.husillo.split(/[\s,]+/).filter(Boolean)
+                      : [];
+                    const isSelected = currentValues.includes(h);
+
+                    const toggleHusillo = () => {
+                      let nextValues: string[];
+                      if (isSelected) {
+                        nextValues = currentValues.filter((x) => x !== h);
+                      } else {
+                        nextValues = [...currentValues, h].sort();
+                      }
+                      handleChange('husillo', nextValues.join(', '));
+                    };
+
+                    return (
+                      <button
+                        key={h}
+                        type="button"
+                        onClick={toggleHusillo}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1 ${
+                          isSelected
+                            ? 'bg-purple-600 text-white shadow ring-2 ring-purple-400'
+                            : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
+                        }`}
+                        title={`Seleccionar o deseleccionar Husillo ${h} (soporta múltiples)`}
+                      >
+                        <span>H-{h}</span>
+                        {isSelected && <span className="text-[10px]">✓</span>}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -583,27 +602,7 @@ export const VerificationForm: React.FC<VerificationFormProps> = ({
             </div>
           </div>
 
-          {/* Observaciones inicial (tarjeta verde) */}
-          <div
-            className={`p-3 rounded-xl border transition-all ${
-              activeFieldKey === 'observacionesInicial'
-                ? 'border-emerald-400 bg-slate-800/90 shadow-md ring-1 ring-emerald-400'
-                : 'border-slate-800 bg-slate-950/60'
-            }`}
-          >
-            <label className="text-xs font-bold text-emerald-200 flex items-center space-x-1 mb-1.5">
-              <FileText className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Observaciones inicial (tarjeta verde)</span>
-            </label>
-            <textarea
-              rows={2}
-              value={formData.observacionesInicial || ''}
-              onFocus={() => setActiveFieldKey('observacionesInicial')}
-              onChange={(e) => handleChange('observacionesInicial', e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-emerald-500 font-mono placeholder:text-slate-500"
-              placeholder="Notas manuscritas de puesta en marcha o calidad..."
-            />
-          </div>
+
         </div>
 
         {/* =========================================================================

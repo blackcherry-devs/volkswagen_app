@@ -53,6 +53,7 @@ export async function runOcrRecognition(
     ollamaUrl?: string;
     model?: string;
     corners?: CardCorners;
+    forceRoi?: boolean;
     onProgress?: (step: string) => void;
   }
 ): Promise<{
@@ -65,26 +66,29 @@ export async function runOcrRecognition(
   let checkboxResult: CheckboxDetectionResult | null = null;
   let crops: CardCrops | null = null;
 
-  // Fase 1: Detección algorítmica de casillas y extracción de recortes en el navegador
+  // Fase 1: Análisis algorítmico rápido de casillas (<10ms)
   if (typeof window !== 'undefined') {
     try {
-      if (onProgress) onProgress('1/3: Detectando casillas con análisis de densidad de píxeles...');
+      if (onProgress) onProgress('1/2: Analizando casillas marcadas...');
       checkboxResult = await detectCheckboxesFromImage(imageUri, cardType, options?.corners);
       console.log('[OCR Service] Casillas detectadas algorítmicamente:', checkboxResult);
     } catch (e) {
       console.warn('[OCR Service] Error en detección de casillas:', e);
     }
 
-    try {
-      if (onProgress) onProgress('2/3: Extrayendo recortes ROI de alta resolución (Regiones A, B, C, D)...');
-      crops = await extractTextRegionCrops(imageUri, cardType, options?.corners);
-    } catch (e) {
-      console.warn('[OCR Service] Error al extraer recortes ROI:', e);
+    // Solo extrae recortes pesados si se pide explícitamente el modo ROI
+    if (options?.forceRoi) {
+      try {
+        if (onProgress) onProgress('Extrayendo recortes ROI de alta resolución...');
+        crops = await extractTextRegionCrops(imageUri, cardType, options?.corners);
+      } catch (e) {
+        console.warn('[OCR Service] Error al extraer recortes ROI:', e);
+      }
     }
   }
 
   try {
-    if (onProgress) onProgress('3/3: Ejecutando inferencia de visión local con Ollama...');
+    if (onProgress) onProgress('2/2: Extrayendo datos con visión inteligente Qwen2.5-VL...');
 
     const res = await fetch('/api/ocr', {
       method: 'POST',
@@ -92,9 +96,10 @@ export async function runOcrRecognition(
       body: JSON.stringify({
         imageBase64: imageUri,
         crops: crops || undefined,
+        forceRoi: options?.forceRoi || false,
         cardType,
         ollamaUrl: options?.ollamaUrl || 'http://127.0.0.1:11434',
-        model: options?.model || 'qwen2.5-vl:7b',
+        model: options?.model || 'qwen2.5vl:latest',
       }),
     });
 

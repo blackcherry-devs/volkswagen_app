@@ -36,10 +36,10 @@ import { CardCorners } from '@/lib/cornerDetection';
 import { Terminal, Cpu, HelpCircle, X, RotateCcw } from 'lucide-react';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'capture' | 'excel' | 'print' | 'calibrate'>('capture');
+  const [activeTab, setActiveTab] = useState<'capture' | 'excel' | 'print'>('capture');
   const [selectedCardType, setSelectedCardType] = useState<CardType>('naranja');
 
-  // Estado de Ollama GLM-OCR
+  // Estado de Ollama (Qwen2.5-VL)
   const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus | null>(null);
   const [isCheckingOllama, setIsCheckingOllama] = useState<boolean>(false);
   const [showOllamaModal, setShowOllamaModal] = useState<boolean>(false);
@@ -242,27 +242,6 @@ export default function Home() {
     }
   };
 
-  // Botón para simular intencionalmente una discrepancia para pruebas del usuario
-  const handleSimulateMismatchTest = () => {
-    if (!orangeScan || !greenScan) {
-      showNotification('Primero escanea o sube ambas tarjetas reales (Naranja y Verde) para probar el cotejo.', 'info');
-      return;
-    }
-
-    // Crear discrepancia intencional en Husillo y Centro de Costos para verificar la alerta roja
-    const modifiedGreen: GreenCardData = {
-      ...greenScan.data,
-      centroCostos: '4999',
-      husillo: '4',
-    };
-
-    setGreenScan({
-      ...greenScan,
-      data: modifiedGreen,
-    });
-
-    runCrossValidation(orangeScan.data, modifiedGreen);
-  };
 
   // Guardar datos validados en el libro Excel (Hoja RUPTURAS TOTAL)
   const handleSaveToExcel = (finalData: UnifiedRupturaData) => {
@@ -379,7 +358,7 @@ export default function Home() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* Estado e indicador interactivo de Ollama GLM-OCR */}
+            {/* Estado e indicador interactivo de Ollama (Qwen2.5-VL) */}
             <button
               onClick={() => setShowOllamaModal(true)}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 border shadow-sm ${
@@ -389,15 +368,15 @@ export default function Home() {
                   ? 'bg-amber-950/60 text-amber-300 border-amber-700/80 hover:bg-amber-900/60'
                   : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-slate-500'
               }`}
-              title="Clic para ver configuración y estado de Ollama GLM-OCR"
+              title="Clic para ver configuración y estado de Ollama"
             >
               <Cpu className="w-3.5 h-3.5" />
               <span>
                 {ollamaStatus?.online && ollamaStatus?.modelAvailable
-                  ? 'Ollama LLaVA: Conectado'
+                  ? `IA: ${ollamaStatus?.targetModel?.includes('qwen') ? 'Qwen2.5-VL' : ollamaStatus?.targetModel || 'Conectado'}`
                   : ollamaStatus?.online
-                  ? 'Ollama: Falta modelo llava'
-                  : 'Ollama: Local'}
+                  ? 'Ollama: Sin modelo'
+                  : 'Ollama: Desconectado'}
               </span>
               <span
                 className={`w-2 h-2 rounded-full ${
@@ -408,16 +387,6 @@ export default function Home() {
                     : 'bg-slate-500'
                 }`}
               />
-            </button>
-
-            {/* Botón para probar discrepancia / desajuste */}
-            <button
-              onClick={handleSimulateMismatchTest}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-950/60 hover:bg-red-900/70 text-red-200 border border-red-800/80 transition flex items-center space-x-1.5"
-              title="Simular discrepancia en Husillo y CC para verificar alerta roja"
-            >
-              <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-              <span>Simular Discrepancia</span>
             </button>
 
             {/* Botón para limpiar formulario (Modo Real en Limpio) */}
@@ -567,12 +536,7 @@ export default function Home() {
           />
         )}
 
-        {/* PESTAÑA 4: CALIBRADOR VISUAL */}
-        {activeTab === 'calibrate' && (
-          <CoordinateCalibrator onNotify={(msg, type) => showNotification(msg, type)} />
-        )}
-
-        {/* MODAL DE CONFIGURACIÓN Y ESTADO DE OLLAMA GLM-OCR */}
+        {/* MODAL DE CONFIGURACIÓN Y ESTADO DE OLLAMA */}
         {showOllamaModal && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
             <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 relative">
@@ -589,10 +553,10 @@ export default function Home() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-white">
-                    Configuración de Ollama (LLaVA)
+                    Motor de Visión IA Local (Qwen2.5-VL)
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Reconocimiento de texto impreso y manuscrito 100% en local sin enviar datos a la nube
+                    Extracción de manuscritos a alta resolución 100% en local sin enviar datos fuera de planta
                   </p>
                 </div>
               </div>
@@ -613,7 +577,7 @@ export default function Home() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-300">Modelo LLaVA:</span>
+                  <span className="text-xs font-semibold text-slate-300">Modelo Activo:</span>
                   <span
                     className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
                       ollamaStatus?.modelAvailable
@@ -621,14 +585,14 @@ export default function Home() {
                         : 'bg-amber-950 text-amber-400 border border-amber-800'
                     }`}
                   >
-                    {ollamaStatus?.modelAvailable ? 'Instalado ✓' : 'Falta descargar'}
+                    {ollamaStatus?.modelAvailable ? `${ollamaStatus?.targetModel || 'qwen2.5vl'} ✓` : 'Falta descargar'}
                   </span>
                 </div>
 
                 {ollamaStatus?.models && ollamaStatus.models.length > 0 && (
                   <div className="pt-1 text-[11px] text-slate-400">
-                    <span>Modelos detectados en tu máquina: </span>
-                    <span className="font-mono text-slate-300">{ollamaStatus.models.join(', ')}</span>
+                    <span>Modelos instalados en Ollama: </span>
+                    <span className="font-mono text-emerald-300 font-bold">{ollamaStatus.models.join(', ')}</span>
                   </div>
                 )}
               </div>

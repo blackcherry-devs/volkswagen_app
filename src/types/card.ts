@@ -11,12 +11,46 @@ export const MOTIVOS_DESMONTAJE = [
   'Ángulo de especificación',
   'Forma fuera de especificación',
   'Despostilladura',
-  'Análisis de herramientas necesario',
+  'Análisis de herramienta necesaria',
   'Fallo de operador',
   'Fallo de máquina',
 ] as const;
 
 export type MotivoDesmontajeTipo = (typeof MOTIVOS_DESMONTAJE)[number];
+
+// Catálogo numerado del 1 al 12 para Motivos de Desmontaje (Simplifica llenado y OCR)
+export const MOTIVOS_DESMONTAJE_CATALOG: { id: number; name: string; shortName: string }[] = [
+  { id: 1, name: 'Rotura', shortName: 'Rotura' },
+  { id: 2, name: 'Formación de rebaba', shortName: 'F. rebaba' },
+  { id: 3, name: 'Rugosidad alta', shortName: 'Rugosidad alta' },
+  { id: 4, name: 'Rugosidad baja', shortName: 'Rugosidad baja' },
+  { id: 5, name: 'Diámetro grande', shortName: 'Diámetro grande' },
+  { id: 6, name: 'Diámetro pequeño', shortName: 'Diámetro pequeño' },
+  { id: 7, name: 'Ángulo de especificación', shortName: 'Ángulo especif.' },
+  { id: 8, name: 'Forma fuera de especificación', shortName: 'Forma fuera especif.' },
+  { id: 9, name: 'Despostilladura', shortName: 'Despostilladura' },
+  { id: 10, name: 'Análisis de herramienta necesaria', shortName: 'Análisis herram.' },
+  { id: 11, name: 'Fallo de operador', shortName: 'Fallo de operador' },
+  { id: 12, name: 'Fallo de máquina', shortName: 'Fallo de máquina' },
+];
+
+export function getMotivoNameByCode(code: number | string): string | null {
+  const num = parseInt(String(code).trim(), 10);
+  if (isNaN(num)) return null;
+  const found = MOTIVOS_DESMONTAJE_CATALOG.find((m) => m.id === num);
+  return found ? found.name : null;
+}
+
+export function getMotivoCodeByName(name: string): number | null {
+  if (!name) return null;
+  const clean = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const found = MOTIVOS_DESMONTAJE_CATALOG.find((m) => {
+    const mClean = m.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const sClean = m.shortName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return mClean === clean || mClean.includes(clean) || clean.includes(mClean) || sClean === clean;
+  });
+  return found ? found.id : null;
+}
 
 // Mapeo oficial de Centro de Costos (CC) a Línea de Producción
 export const CENTRO_COSTOS_LINEAS: Record<string, string> = {

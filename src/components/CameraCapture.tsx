@@ -27,8 +27,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   const nativeCameraInputRef = useRef<HTMLInputElement | null>(null);
   const guideRef = useRef<HTMLDivElement | null>(null);
   const [guideSize, setGuideSize] = useState<'normal' | 'compact' | 'wide'>('normal');
-  const [isAligned, setIsAligned] = useState<boolean>(false);
-
   const guideWidthClass =
     guideSize === 'compact'
       ? 'w-[70vw] max-w-[260px]'
@@ -103,7 +101,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     }
     setIsTorchOn(false);
     setStreamActive(false);
-    setIsAligned(false);
   };
 
   const toggleCameraFacing = () => {
@@ -134,133 +131,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       stopCamera();
     };
   }, [cameraFacing]);
-
-  // Loop ligero con requestAnimationFrame que analiza cada ~180ms las 4 esquinas del video
-  useEffect(() => {
-    if (!streamActive) {
-      setIsAligned(false);
-      return;
-    }
-
-    let isMounted = true;
-    let animId: number;
-    let lastCheck = 0;
-
-    const sampleCanvas = document.createElement("canvas");
-    sampleCanvas.width = 24;
-    sampleCanvas.height = 24;
-    const sampleCtx = sampleCanvas.getContext("2d", { willReadFrequently: true });
-
-    const checkFrame = (timestamp: number) => {
-      if (!isMounted) return;
-
-      if (timestamp - lastCheck >= 180) {
-        lastCheck = timestamp;
-
-        const video = videoRef.current;
-        const guideEl = guideBoxRef.current || guideRef.current;
-        if (video && guideEl && sampleCtx && video.readyState >= 2) {
-          const vWidth = video.videoWidth;
-          const vHeight = video.videoHeight;
-
-          if (vWidth && vHeight) {
-            const guideRect = guideEl.getBoundingClientRect();
-            const videoRect = video.getBoundingClientRect();
-
-            if (guideRect.width && videoRect.width) {
-              const videoRatio = vWidth / vHeight;
-              const elemRatio = videoRect.width / videoRect.height;
-
-              let renderedWidth = videoRect.width;
-              let renderedHeight = videoRect.height;
-              let offsetX = 0;
-              let offsetY = 0;
-
-              if (elemRatio > videoRatio) {
-                renderedWidth = videoRect.width;
-                renderedHeight = videoRect.width / videoRatio;
-                offsetY = (videoRect.height - renderedHeight) / 2;
-              } else {
-                renderedWidth = videoRect.height * videoRatio;
-                renderedHeight = videoRect.height;
-                offsetX = (videoRect.width - renderedWidth) / 2;
-              }
-
-              const scaleX = vWidth / renderedWidth;
-              const scaleY = vHeight / renderedHeight;
-
-              // Centros de las 4 cajas guía de 44x44 px (offset de ~22px desde las esquinas del marco)
-              const offsetPx = 22;
-              const corners = [
-                { x: guideRect.left + offsetPx, y: guideRect.top + offsetPx }, // 1: Top-Left
-                { x: guideRect.right - offsetPx, y: guideRect.top + offsetPx }, // 2: Top-Right
-                { x: guideRect.left + offsetPx, y: guideRect.bottom - offsetPx }, // 3: Bottom-Left
-                { x: guideRect.right - offsetPx, y: guideRect.bottom - offsetPx }, // 4: Bottom-Right
-              ];
-
-              const boxSize = Math.max(16, Math.round(36 * scaleX));
-              let detectedCount = 0;
-
-              for (const pt of corners) {
-                const vx = (pt.x - videoRect.left - offsetX) * scaleX;
-                const vy = (pt.y - videoRect.top - offsetY) * scaleY;
-
-                const sx = Math.max(0, Math.min(vWidth - boxSize, Math.round(vx - boxSize / 2)));
-                const sy = Math.max(0, Math.min(vHeight - boxSize, Math.round(vy - boxSize / 2)));
-
-                sampleCtx.drawImage(video, sx, sy, boxSize, boxSize, 0, 0, 24, 24);
-                const imgData = sampleCtx.getImageData(0, 0, 24, 24);
-                const data = imgData.data;
-
-                let darkPixels = 0;
-                let brightOrCardPixels = 0;
-                const total = 24 * 24;
-
-                for (let i = 0; i < data.length; i += 4) {
-                  const r = data[i];
-                  const g = data[i + 1];
-                  const b = data[i + 2];
-                  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-
-                  // Píxel oscuro (marcador negro / tinta)
-                  if (lum < 75 || (r < 80 && g < 80 && b < 80)) {
-                    darkPixels++;
-                  }
-                  // Fondo claro o color industrial del cartoncillo
-                  if (cardType === "naranja") {
-                    if (r > 105 && g > 45 && r > b * 1.25) brightOrCardPixels++;
-                    else if (lum > 130) brightOrCardPixels++;
-                  } else {
-                    if (g > 70 && g > b && g > r * 0.95) brightOrCardPixels++;
-                    else if (lum > 130) brightOrCardPixels++;
-                  }
-                }
-
-                const darkRatio = darkPixels / total;
-                const cardRatio = brightOrCardPixels / total;
-                // Presencia de contraste (marcador negro sobre fondo claro)
-                if ((darkRatio >= 0.04 && darkRatio <= 0.80) || (darkRatio >= 0.02 && cardRatio >= 0.12)) {
-                  detectedCount++;
-                }
-              }
-
-              const allAligned = detectedCount === 4;
-              setIsAligned((prev) => (prev !== allAligned ? allAligned : prev));
-            }
-          }
-        }
-      }
-
-      animId = requestAnimationFrame(checkFrame);
-    };
-
-    animId = requestAnimationFrame(checkFrame);
-
-    return () => {
-      isMounted = false;
-      cancelAnimationFrame(animId);
-    };
-  }, [streamActive, cardType]);
 
   // Capturar frame actual del video a Canvas proyectando exactamente lo que está dentro del marco guía
   const takeSnapshot = () => {
@@ -447,20 +317,10 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               </button>
             </div>
 
-            {/* Píldora de Estado de Alineación (Amarillo ➔ Verde) */}
-            <div
-              className={`px-3 py-1.5 backdrop-blur-md rounded-full text-[11px] font-bold shadow-2xl flex items-center space-x-2 border transition-all duration-300 ${
-                isAligned
-                  ? 'bg-emerald-950/90 text-emerald-300 border-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.5)] animate-pulse'
-                  : 'bg-black/80 text-amber-300 border-amber-400/40'
-              }`}
-            >
-              <span
-                className={`w-2.5 h-2.5 rounded-full ${
-                  isAligned ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'
-                }`}
-              />
-              <span>{isAligned ? '✓ ¡4 Marcadores Dentro! Listo para disparar' : 'Buscando 4 Marcadores...'}</span>
+            {/* Píldora de Estado para Qwen2.5-VL */}
+            <div className="px-3 py-1.5 backdrop-blur-md rounded-full text-[11px] font-bold shadow-2xl flex items-center space-x-2 border bg-black/80 text-emerald-300 border-emerald-400/40">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Visor Listo • Qwen2.5-VL</span>
             </div>
 
             <button
@@ -472,132 +332,71 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             </button>
           </div>
 
-          {/* 1. Centro: Marco Guía para el Cartón (Centrado en el área visible con despeje inferior amplio) */}
+          {/* 1. Centro: Marco Guía de Escaneo de Documentos (Limpio y sin cuadritos molestos) */}
           <div className="absolute inset-x-0 top-16 bottom-36 sm:bottom-32 flex items-center justify-center pointer-events-none z-20">
             <div
               ref={guideBoxRef}
               className={`relative ${guideWidthClass} aspect-[1/1.52] flex flex-col justify-between transition-all duration-200`}
             >
-              {/* Recuadro perimetral punteado (Amarillo ➔ Verde) */}
+              {/* Recuadro perimetral sutil */}
               <div
-                className={`absolute inset-0 border-2 border-dashed rounded-2xl pointer-events-none transition-all duration-300 ${
-                  isAligned
-                    ? "border-emerald-400/90 bg-emerald-500/10 shadow-[0_0_35px_rgba(52,211,153,0.45)]"
-                    : "border-amber-400/90 bg-amber-400/5 shadow-[0_0_30px_rgba(245,158,11,0.35)]"
+                className={`absolute inset-0 border border-white/20 rounded-2xl pointer-events-none transition-all duration-300 ${
+                  isOrange
+                    ? 'shadow-[0_0_25px_rgba(249,115,22,0.25)]'
+                    : 'shadow-[0_0_25px_rgba(16,185,129,0.25)]'
                 }`}
               />
 
-              {/* 4 Cuadros Guía Grandes, Visibles y Numerados (44x44 px: w-11 h-11) */}
-
-              {/* Esquina 1 (Top-Left): top-1 left-1 con etiqueta visible 1 */}
+              {/* 4 Esquinas en "L" estilo escáner inteligente de documentos */}
+              {/* Esquina Superior Izquierda */}
               <div
-                className={`absolute top-1 left-1 w-11 h-11 rounded-lg border-2 flex items-center justify-center transition-all duration-300 z-10 pointer-events-none ${
-                  isAligned
-                    ? 'border-emerald-400 bg-emerald-500/30 text-emerald-300 scale-110 shadow-[0_0_15px_rgba(52,211,153,0.8)]'
-                    : 'border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.5)]'
+                className={`absolute top-0 left-0 w-8 h-8 rounded-tl-xl border-t-4 border-l-4 ${
+                  isOrange ? 'border-orange-400 shadow-[0_0_12px_rgba(251,146,60,0.6)]' : 'border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)]'
                 }`}
-              >
-                {/* Mira concéntrica interior */}
-                <div className="w-5 h-5 rounded-full border border-dashed border-current flex items-center justify-center">
-                  <div className={`w-2 h-2 rounded-full ${isAligned ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`} />
-                </div>
-                {/* Etiqueta visible 1 */}
-                <span
-                  className={`absolute -top-2.5 -left-2.5 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black font-mono shadow-md border ${
-                    isAligned
-                      ? 'bg-emerald-400 text-slate-950 border-emerald-200'
-                      : 'bg-amber-400 text-slate-950 border-amber-200'
-                  }`}
-                >
-                  1
-                </span>
-              </div>
-
-              {/* Esquina 2 (Top-Right): top-1 right-1 con etiqueta visible 2 */}
+              />
+              {/* Esquina Superior Derecha */}
               <div
-                className={`absolute top-1 right-1 w-11 h-11 rounded-lg border-2 flex items-center justify-center transition-all duration-300 z-10 pointer-events-none ${
-                  isAligned
-                    ? 'border-emerald-400 bg-emerald-500/30 text-emerald-300 scale-110 shadow-[0_0_15px_rgba(52,211,153,0.8)]'
-                    : 'border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.5)]'
+                className={`absolute top-0 right-0 w-8 h-8 rounded-tr-xl border-t-4 border-r-4 ${
+                  isOrange ? 'border-orange-400 shadow-[0_0_12px_rgba(251,146,60,0.6)]' : 'border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)]'
                 }`}
-              >
-                <div className="w-5 h-5 rounded-full border border-dashed border-current flex items-center justify-center">
-                  <div className={`w-2 h-2 rounded-full ${isAligned ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`} />
-                </div>
-                <span
-                  className={`absolute -top-2.5 -right-2.5 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black font-mono shadow-md border ${
-                    isAligned
-                      ? 'bg-emerald-400 text-slate-950 border-emerald-200'
-                      : 'bg-amber-400 text-slate-950 border-amber-200'
-                  }`}
-                >
-                  2
-                </span>
-              </div>
-
-              {/* Esquina 3 (Bottom-Left): bottom-1 left-1 con etiqueta visible 3 */}
+              />
+              {/* Esquina Inferior Izquierda */}
               <div
-                className={`absolute bottom-1 left-1 w-11 h-11 rounded-lg border-2 flex items-center justify-center transition-all duration-300 z-10 pointer-events-none ${
-                  isAligned
-                    ? 'border-emerald-400 bg-emerald-500/30 text-emerald-300 scale-110 shadow-[0_0_15px_rgba(52,211,153,0.8)]'
-                    : 'border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.5)]'
+                className={`absolute bottom-0 left-0 w-8 h-8 rounded-bl-xl border-b-4 border-l-4 ${
+                  isOrange ? 'border-orange-400 shadow-[0_0_12px_rgba(251,146,60,0.6)]' : 'border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)]'
                 }`}
-              >
-                <div className="w-5 h-5 rounded-full border border-dashed border-current flex items-center justify-center">
-                  <div className={`w-2 h-2 rounded-full ${isAligned ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`} />
-                </div>
-                <span
-                  className={`absolute -bottom-2.5 -left-2.5 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black font-mono shadow-md border ${
-                    isAligned
-                      ? 'bg-emerald-400 text-slate-950 border-emerald-200'
-                      : 'bg-amber-400 text-slate-950 border-amber-200'
-                  }`}
-                >
-                  3
-                </span>
-              </div>
-
-              {/* Esquina 4 (Bottom-Right): bottom-1 right-1 con etiqueta visible 4 */}
+              />
+              {/* Esquina Inferior Derecha */}
               <div
-                className={`absolute bottom-1 right-1 w-11 h-11 rounded-lg border-2 flex items-center justify-center transition-all duration-300 z-10 pointer-events-none ${
-                  isAligned
-                    ? 'border-emerald-400 bg-emerald-500/30 text-emerald-300 scale-110 shadow-[0_0_15px_rgba(52,211,153,0.8)]'
-                    : 'border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.5)]'
+                className={`absolute bottom-0 right-0 w-8 h-8 rounded-br-xl border-b-4 border-r-4 ${
+                  isOrange ? 'border-orange-400 shadow-[0_0_12px_rgba(251,146,60,0.6)]' : 'border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)]'
                 }`}
-              >
-                <div className="w-5 h-5 rounded-full border border-dashed border-current flex items-center justify-center">
-                  <div className={`w-2 h-2 rounded-full ${isAligned ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`} />
-                </div>
-                <span
-                  className={`absolute -bottom-2.5 -right-2.5 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black font-mono shadow-md border ${
-                    isAligned
-                      ? 'bg-emerald-400 text-slate-950 border-emerald-200'
-                      : 'bg-amber-400 text-slate-950 border-amber-200'
-                  }`}
-                >
-                  4
+              />
+
+              {/* Marca de agua / Instrucción central tenue */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-white/40 text-[11px] font-medium tracking-wider uppercase px-3 py-1 rounded bg-black/30 backdrop-blur-[2px]">
+                  {isOrange ? 'Tarjeta Naranja' : 'Tarjeta Verde'}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Barra Inferior con Disparador Ergonómico y Texto Debajo */}
+          {/* Barra Inferior con Disparador Ergonómico y Texto */}
           <div className="relative z-30 pb-4 sm:pb-6 px-4 flex flex-col items-center justify-center space-y-2">
             <button
               onClick={takeSnapshot}
               disabled={isProcessing}
               className={`relative p-2 rounded-full border-4 backdrop-blur-sm shadow-2xl active:scale-90 transition-all hover:scale-105 ${
-                isAligned
-                  ? 'border-emerald-400/90 bg-emerald-500/30 shadow-[0_0_30px_rgba(52,211,153,0.6)] ring-4 ring-emerald-400/40 animate-pulse'
-                  : 'border-white/95 bg-white/20'
+                isOrange
+                  ? 'border-orange-400/90 bg-orange-500/20 shadow-[0_0_25px_rgba(249,115,22,0.5)]'
+                  : 'border-emerald-400/90 bg-emerald-500/20 shadow-[0_0_25px_rgba(16,185,129,0.5)]'
               }`}
               title="Tomar foto del cartón"
             >
               <div
                 className={`w-16 h-16 sm:w-18 sm:h-18 rounded-full ${
-                  isAligned
-                    ? 'bg-gradient-to-tr from-emerald-600 to-teal-500'
-                    : isOrange
+                  isOrange
                     ? 'bg-gradient-to-tr from-orange-600 to-amber-500'
                     : 'bg-gradient-to-tr from-emerald-600 to-teal-500'
                 } flex items-center justify-center shadow-2xl transition-transform`}
@@ -606,17 +405,9 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               </div>
             </button>
 
-            {/* Texto informativo ubicado DEBAJO del botón de disparo para nunca tapar las esquinas 3 y 4 ni el botón */}
-            <div
-              className={`text-center backdrop-blur-md text-[11px] sm:text-xs py-1 px-3.5 rounded-full border shadow-2xl transition-all duration-300 max-w-[92vw] ${
-                isAligned
-                  ? 'bg-emerald-950/90 text-emerald-200 border-emerald-400/80 font-bold'
-                  : 'bg-black/85 text-amber-200 border-amber-400/40 font-medium'
-              }`}
-            >
-              {isAligned
-                ? '✓ ¡4 Marcadores Dentro! Presiona el botón para disparar'
-                : 'Mete los 4 cuadros negros dentro de las esquinas 1, 2, 3 y 4'}
+            {/* Texto informativo ubicado DEBAJO del botón de disparo */}
+            <div className="text-center backdrop-blur-md text-[11px] sm:text-xs py-1 px-4 rounded-full border shadow-2xl transition-all duration-300 max-w-[92vw] bg-black/85 text-slate-200 border-white/20 font-medium">
+              Centra la tarjeta en el marco y presiona el botón para escanear
             </div>
           </div>
         </div>

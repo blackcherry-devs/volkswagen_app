@@ -32,10 +32,11 @@ export const OrangeCardSchema = z.object({
     .string()
     .trim()
     .refine((val) => {
-      const num = parseInt(val.replace(/\D/g, ''), 10);
-      return !isNaN(num) && num >= 1 && num <= 4;
+      const digits = val.match(/[1-4]/g);
+      const invalid = val.replace(/[1-4,\s]/g, '');
+      return digits !== null && digits.length > 0 && invalid.length === 0;
     }, {
-      message: 'El husillo debe ser del 1 al 4 (máx. 4 husillos)',
+      message: 'El husillo debe ser del 1 al 4 (permite múltiples: ej. 1 o 1, 2)',
     }),
   tiempoVidaUtil: z
     .string()
@@ -60,7 +61,7 @@ export const OrangeCardSchema = z.object({
   motivoDesmontaje: z
     .string()
     .trim()
-    .min(3, { message: 'El motivo de desmontaje u observaciones es obligatorio' }),
+    .min(1, { message: 'El motivo de desmontaje es obligatorio' }),
   observaciones: z.string().trim().optional(),
 });
 
@@ -95,10 +96,11 @@ export const GreenCardSchema = z.object({
     .string()
     .trim()
     .refine((val) => {
-      const num = parseInt(val.replace(/\D/g, ''), 10);
-      return !isNaN(num) && num >= 1 && num <= 4;
+      const digits = val.match(/[1-4]/g);
+      const invalid = val.replace(/[1-4,\s]/g, '');
+      return digits !== null && digits.length > 0 && invalid.length === 0;
     }, {
-      message: 'El husillo debe ser del 1 al 4 (máx. 4 husillos)',
+      message: 'El husillo debe ser del 1 al 4 (permite múltiples: ej. 1 o 1, 2)',
     }),
   tiempoVidaUtil: z
     .string()
@@ -155,10 +157,11 @@ export const UnifiedRupturaSchema = z.object({
     .string()
     .trim()
     .refine((val) => {
-      const num = parseInt(val.replace(/\D/g, ''), 10);
-      return !isNaN(num) && num >= 1 && num <= 4;
+      const digits = val.match(/[1-4]/g);
+      const invalid = val.replace(/[1-4,\s]/g, '');
+      return digits !== null && digits.length > 0 && invalid.length === 0;
     }, {
-      message: 'El husillo debe ser del 1 al 4 (máx. 4 husillos)',
+      message: 'El husillo debe ser del 1 al 4 (permite múltiples: ej. 1 o 1, 2)',
     }),
 
   // Campos Únicos Tarjeta Verde (Inicial)
@@ -189,8 +192,12 @@ export function normalizeSharedValue(key: string, value: string): string {
   if (key === 'numeroHerramienta') {
     return clean.toUpperCase().replace(/[^A-Z0-9]/g, '');
   }
-  if (key === 'maquina' || key === 'husillo') {
+  if (key === 'maquina') {
     return clean.replace(/\D/g, '');
+  }
+  if (key === 'husillo') {
+    const digits = [...new Set((clean.match(/[1-4]/g) || []))].sort();
+    return digits.join(',');
   }
   if (key === 'centroCostos') {
     return clean.replace(/\s+/g, '');

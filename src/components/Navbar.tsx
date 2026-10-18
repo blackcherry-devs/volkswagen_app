@@ -5,8 +5,8 @@ import { Camera, FileSpreadsheet, Printer, Sliders, CheckCircle2, ShieldCheck, S
 import { CardType } from '@/types/card';
 
 interface NavbarProps {
-  activeTab: 'capture' | 'excel' | 'print' | 'calibrate';
-  setActiveTab: (tab: 'capture' | 'excel' | 'print' | 'calibrate') => void;
+  activeTab: 'capture' | 'excel' | 'print';
+  setActiveTab: (tab: 'capture' | 'excel' | 'print') => void;
   selectedCardType: CardType;
   setSelectedCardType: (type: CardType) => void;
   savedCount: number;
@@ -129,18 +129,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Printer className="w-3.5 h-3.5" />
               <span>Imprimir</span>
             </button>
-
-            <button
-              onClick={() => setActiveTab('calibrate')}
-              className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                activeTab === 'calibrate'
-                  ? 'bg-purple-600/40 text-purple-200 shadow-md ring-1 ring-purple-500/50'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
-              }`}
-            >
-              <Sliders className="w-3.5 h-3.5 text-purple-400" />
-              <span>Calibrador</span>
-            </button>
           </nav>
 
         </div>
@@ -151,7 +139,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('capture')}
-          className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition cursor-pointer touch-manipulation active:scale-95 ${
+          className={`flex flex-col items-center py-1.5 px-4 rounded-xl transition cursor-pointer touch-manipulation active:scale-95 ${
             activeTab === 'capture'
               ? 'text-blue-400 bg-blue-950/40 font-bold border border-blue-500/30 shadow'
               : 'text-slate-400 hover:text-slate-200'
@@ -164,7 +152,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('excel')}
-          className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition cursor-pointer touch-manipulation active:scale-95 relative ${
+          className={`flex flex-col items-center py-1.5 px-4 rounded-xl transition cursor-pointer touch-manipulation active:scale-95 relative ${
             activeTab === 'excel'
               ? 'text-emerald-400 bg-emerald-950/40 font-bold border border-emerald-500/30 shadow'
               : 'text-slate-400 hover:text-slate-200'
@@ -177,7 +165,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('print')}
-          className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition cursor-pointer touch-manipulation active:scale-95 ${
+          className={`flex flex-col items-center py-1.5 px-4 rounded-xl transition cursor-pointer touch-manipulation active:scale-95 ${
             activeTab === 'print'
               ? 'text-blue-400 bg-blue-950/40 font-bold border border-blue-500/30 shadow'
               : 'text-slate-400 hover:text-slate-200'
@@ -185,19 +173,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <Printer className="w-4 h-4 mb-0.5" />
           <span className="text-[10px]">Imprimir</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('calibrate')}
-          className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition cursor-pointer touch-manipulation active:scale-95 ${
-            activeTab === 'calibrate'
-              ? 'text-purple-400 bg-purple-950/40 font-bold border border-purple-500/30 shadow'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Sliders className="w-4 h-4 mb-0.5" />
-          <span className="text-[10px]">Calibrar</span>
         </button>
       </div>
     </header>

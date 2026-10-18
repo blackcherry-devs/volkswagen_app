@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getMotivoNameByCode } from '@/types/card';
 
 const DEFAULT_OLLAMA_URL = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
 const DEFAULT_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5-vl:7b';
@@ -127,8 +128,17 @@ export async function POST(req: NextRequest) {
     let extractedData: any = {};
     let rawOutputCombined = '';
 
-    // ESTRATEGIA A: Pipeline de Recortes Enfocados (Crop ROI)
-    if (crops && (crops.regionA || crops.regionB || crops.regionC || crops.regionD)) {
+    const isQwen = activeModel.toLowerCase().includes('qwen');
+
+    // ESTRATEGIA PRINCIPAL PARA QWEN2.5-VL: Inferencia directa sobre la tarjeta completa (1 única pasada en ~1s)
+    if ((isQwen && imageBase64 && !body.forceRoi) || (!crops && imageBase64)) {
+      console.log(`[OCR Full Qwen] Procesando tarjeta completa directamente con modelo ${activeModel}...`);
+      const prompt = buildOcrPrompt(cardType);
+      const rawOutput = await queryOllamaVision(ollamaUrl, activeModel, prompt, imageBase64);
+      rawOutputCombined = rawOutput;
+      extractedData = parseOcrResponse(rawOutput, cardType);
+    } else if (crops && (crops.regionA || crops.regionB || crops.regionC || crops.regionD)) {
+      // ESTRATEGIA SECUNDARIA: Pipeline de Recortes Enfocados (Crop ROI)
       console.log(`[OCR ROI] Procesando recortes enfocados con modelo ${activeModel}...`);
 
       const tasks: Promise<any>[] = [];
@@ -162,7 +172,7 @@ Return JSON only:
         const promptB = `Look at this crop of the machine and tool life section:
 Transcribe ONLY what is physically handwritten or marked:
 1. 'Máquina': Read the single handwritten machine number written on the line after 'Máquina (1-10):'.
-2. 'Husillo': Look at boxes 1, 2, 3, 4. If one box is crossed out or marked with an X, return its number ('1', '2', '3', or '4'). Otherwise return "".
+2. 'Husillo': Look at boxes 1, 2, 3, 4. Detect which boxes are marked with an X, checkmark, or stroke. One or more boxes can be marked. Return the marked numbers separated by comma (e.g. '1', '2', or '1, 2'). If none, return "".
 3. 'Tiempo de vida útil': Read the piece count number written on the line for tool life ("Tiempo de vida útil" or "Tiempo de vida logrado").
 STRICT RULE: Do NOT invent numbers. If a field is blank, return "".
 Return JSON only:
@@ -225,12 +235,24 @@ Return JSON only:
         );
       }
 
-      // Región Motivos: 12 Casillas de Desmontaje (Solo Tarjeta Naranja)
+      // Región Motivos: Catálogo numerado 1 al 12 y cajetín N° MOTIVO (Tarjeta Naranja)
       if (crops.regionMotivos) {
-        const promptMotivos = `Look at this crop of the 12 checkboxes under "MOTIVO DE DESMONTAJE":
-Identify which single reason is marked with a pen cross or X:
-Options: Rotura, Formación de rebaba, Rugosidad alta, Rugosidad baja, Diámetro grande, Diámetro pequeño, Ángulo de especificación, Forma fuera de especificación, Despostilladura, Análisis de herramientas necesario, Fallo de operador, Fallo de máquina.
-STRICT RULE: Return ONLY the exact name from the list that is checked. If none or unclear, return "".
+        const promptMotivos = `Look at this crop of the Motivo de Desmontaje section. Notice there is a catalog numbered 1 to 12 and a large square box titled 'N° MOTIVO (DEL 1 AL 12)':
+Read the handwritten number written inside the 'N° MOTIVO' box (a number from 1 to 12).
+Catalog reference:
+1 = Rotura
+2 = Formación de rebaba
+3 = Rugosidad alta
+4 = Rugosidad baja
+5 = Diámetro grande
+6 = Diámetro pequeño
+7 = Ángulo de especificación
+8 = Forma fuera de especificación
+9 = Despostilladura
+10 = Análisis de herramienta necesaria
+11 = Fallo de operador
+12 = Fallo de máquina
+Return the number (1-12) or the exact reason name. If blank, return "".
 Return JSON only:
 {"motivoDesmontaje": ""}`;
 
@@ -313,12 +335,27 @@ Carefully examine this cropped HSK 63 Orange Tool Control Card (Cartoncillo Nara
 2. 'Operación:': Read the handwritten text or digits written on the underline after 'Operación:'.
 3. 'No. de Herramienta:': Read the tool ID or number written after the 'T' box.
 4. 'Máquina (1-10):': Read the single machine number written on the line.
-5. 'Husillo (1-4)': Look at boxes 1, 2, 3, 4. Identify which box number is marked with an X or crossed out (return '1', '2', '3', or '4').
+5. 'Husillo (1-4)': Look at the 4 square boxes labelled 1, 2, 3, 4. Detect which boxes contain a handwritten 'X', checkmark, or stroke. One or more boxes can be marked. Return the marked numbers separated by comma (e.g. "1" or "1, 2" or "2, 4").
 6. 'Tiempo de vida útil logrado:': Read the number of pieces written on the line.
-7. 'MOTIVO DE DESMONTAJE (MARCAR CON X)': Identify which of the 12 reasons is marked with an X: Rotura, Formación de rebaba, Rugosidad alta, Rugosidad baja, Diámetro grande, Diámetro pequeño, Ángulo de especificación, Forma fuera de especificación, Despostilladura, Análisis de herramientas necesario, Fallo de operador, Fallo de máquina.
-8. 'OBSERVACIONES / DETALLES DE FALLA:': Read the handwritten text inside the white box.
+7. 'MOTIVO DE DESMONTAJE':
+   Look at the 'MOTIVO DE DESMONTAJE' section. Notice there is a catalog numbered 1 to 12 and a large square box titled 'N° MOTIVO (DEL 1 AL 12)':
+   Catalog:
+   1: Rotura
+   2: Formación de rebaba
+   3: Rugosidad alta
+   4: Rugosidad baja
+   5: Diámetro grande
+   6: Diámetro pequeño
+   7: Ángulo de especificación
+   8: Forma fuera de especificación
+   9: Despostilladura
+   10: Análisis de herramienta necesaria
+   11: Fallo de operador
+   12: Fallo de máquina
+   Read the handwritten number (1-12) written inside the 'N° MOTIVO' box or any marked reason. Return the number (1-12) or the exact reason name.
+8. 'OBSERVACIONES / DETALLES DE FALLA:': Read the handwritten text written inside the white box.
 9. 'Fecha:': Read the handwritten date as written.
-10. 'Turno:': Look at boxes 1, 2, 3. Identify which shift box number has an X (return '1', '2', or '3').
+10. 'Turno:': Look at the shift checkboxes labelled 1°, 2°, 3°. Detect which checkbox has an 'X', checkmark, or stroke. Return ONLY "1", "2", or "3".
 11. 'Nombre del Operador:': Read the full handwritten person name written on the line.
 
 STRICT RULE: Transcribe ONLY what is physically written. Do NOT guess or invent numbers or text. If empty, return "".
@@ -341,7 +378,7 @@ Transcribe the fields into a valid JSON object with these exact keys:
 Return ONLY the raw JSON object. No explanations.`;
   }
 
-  // Tarjeta Verde (Inicial / Seguimiento)
+  // Tarjeta Verde (Inicial / Seguimiento) - Nota: Observaciones ha sido retirada del diseño verde
   return `You are an expert industrial handwriting OCR transcription system for Volkswagen de México factory cards.
 Carefully examine this cropped HSK 63 Green Tool Control Card (Cartoncillo Verde Inicial / Seguimiento) strictly in visual order from top to bottom:
 
@@ -349,12 +386,11 @@ Carefully examine this cropped HSK 63 Green Tool Control Card (Cartoncillo Verde
 2. 'Operación:': Read the handwritten text or digits written on the underline after 'Operación:'.
 3. 'No. de Herramienta:': Read the tool ID or number written after the 'T' box.
 4. 'Máquina (1-10):': Read the single machine number written on the line.
-5. 'Husillo (1-4)': Look at boxes 1, 2, 3, 4. Identify which box number is marked with an X or crossed out (return '1', '2', '3', or '4').
+5. 'Husillo (1-4)': Look at the 4 square boxes labelled 1, 2, 3, 4. Detect which boxes contain a handwritten 'X', checkmark, or stroke. One or more boxes can be marked. Return the marked numbers separated by comma (e.g. "1" or "1, 2").
 6. 'Tiempo de vida útil:': Read the number of pieces written on the line.
-7. 'OBSERVACIONES DE PRODUCCIÓN / CALIDAD:': Read the handwritten text inside the white box.
-8. 'Fecha:': Read the handwritten date as written.
-9. 'Turno:': Look at boxes 1, 2, 3. Identify which shift box number has an X (return '1', '2', or '3').
-10. 'Nombre del Operador:': Read the full handwritten person name written on the line.
+7. 'Fecha:': Read the handwritten date as written.
+8. 'Turno:': Look at the shift checkboxes labelled 1°, 2°, 3°. Detect which checkbox has an 'X', checkmark, or stroke. Return ONLY "1", "2", or "3".
+9. 'Nombre del Operador:': Read the full handwritten person name written on the line.
 
 STRICT RULE: Transcribe ONLY what is physically written. Do NOT guess or invent numbers or text. If empty, return "".
 
@@ -366,7 +402,6 @@ Transcribe the fields into a valid JSON object with these exact keys:
   "maquina": "",
   "husillo": "",
   "tiempoVidaUtil": "",
-  "observaciones": "",
   "fecha": "",
   "turno": "",
   "nombre": ""
@@ -483,15 +518,17 @@ function normalizeExtractedFields(parsed: any, cardType: string): any {
   const maqMatch = maquina.match(/\b(10|[1-9])\b/);
   if (maqMatch) maquina = maqMatch[1];
 
-  // Husillo: extraer dígito del 1 al 4
+  // Husillo: extraer uno o más dígitos del 1 al 4 (permite multiselección: ej. "1, 2")
   let husillo = cleanStr(parsed.husillo);
-  const husMatch = husillo.match(/[1-4]/);
-  if (husMatch) husillo = husMatch[0];
+  const husDigits = [...new Set((husillo.match(/[1-4]/g) || []))].sort();
+  if (husDigits.length > 0) {
+    husillo = husDigits.join(', ');
+  }
 
-  // Turno: extraer dígito del 1 al 3
+  // Turno: extraer dígito del 1 al 3 incluso si viene como "1°", "Turno 2", "T-3", etc.
   let turno = cleanStr(parsed.turno);
-  const turnoMatch = turno.match(/[1-3]/);
-  if (turnoMatch) turno = turnoMatch[0];
+  const turnoMatch = turno.match(/(?:turno\s*|t-?)?([1-3])/i);
+  if (turnoMatch) turno = turnoMatch[1];
 
   const result: any = {
     centroCostos: cc,
@@ -506,23 +543,67 @@ function normalizeExtractedFields(parsed: any, cardType: string): any {
     observaciones: cleanStr(parsed.observaciones),
   };
 
+  if (cardType === 'verde') {
+    delete result.observaciones;
+  }
+
   if (cardType === 'naranja') {
-    const rawMotivo = cleanStr(
+    const rawVal = cleanStr(
       parsed.motivoDesmontaje || parsed['motivo'] || parsed['motivo_desmontaje'] || ''
-    ).toLowerCase();
-
-    const MOTIVOS_LIST = [
-      'Rotura', 'Formación de rebaba', 'Rugosidad alta', 'Rugosidad baja',
-      'Diámetro grande', 'Diámetro pequeño', 'Ángulo de especificación',
-      'Forma fuera de especificación', 'Despostilladura',
-      'Análisis de herramientas necesario', 'Fallo de operador', 'Fallo de máquina'
-    ];
-
-    const matchedMotivo = MOTIVOS_LIST.find((m) =>
-      rawMotivo.includes(m.toLowerCase()) || m.toLowerCase().includes(rawMotivo)
     );
 
-    result.motivoDesmontaje = matchedMotivo || cleanStr(parsed.motivoDesmontaje);
+    // 1. Probar si el operador escribió un número del 1 al 12 en el cajetín "N° MOTIVO"
+    const numMatch = rawVal.match(/\b(1[0-2]|[1-9])\b/);
+    if (numMatch) {
+      const code = parseInt(numMatch[1], 10);
+      const nameFromCode = getMotivoNameByCode(code);
+      if (nameFromCode) {
+        result.motivoDesmontaje = nameFromCode;
+        return result;
+      }
+    }
+
+    // 2. Mapeo textual por si escribió o reconoció el nombre del defecto
+    const rawMotivo = rawVal.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Quitar acentos para matching robusto
+
+    const MOTIVOS_MAP: Record<string, string> = {
+      rotura: 'Rotura',
+      rebaba: 'Formación de rebaba',
+      formacion: 'Formación de rebaba',
+      'rugosidad alta': 'Rugosidad alta',
+      'rugosidad baja': 'Rugosidad baja',
+      'diametro grande': 'Diámetro grande',
+      'diametro pequeno': 'Diámetro pequeño',
+      'diametro peque': 'Diámetro pequeño',
+      pequeno: 'Diámetro pequeño',
+      pequeno_dim: 'Diámetro pequeño',
+      angulo: 'Ángulo de especificación',
+      especificacion: 'Forma fuera de especificación',
+      forma: 'Forma fuera de especificación',
+      despostilladura: 'Despostilladura',
+      desportilladura: 'Despostilladura',
+      despostillado: 'Despostilladura',
+      desportillado: 'Despostilladura',
+      chipping: 'Despostilladura',
+      analisis: 'Análisis de herramienta necesaria',
+      'analisis de herramienta': 'Análisis de herramienta necesaria',
+      'analisis de herramientas': 'Análisis de herramienta necesaria',
+      'herramienta necesaria': 'Análisis de herramienta necesaria',
+      'fallo de operador': 'Fallo de operador',
+      operador: 'Fallo de operador',
+      'fallo de maquina': 'Fallo de máquina',
+      maquina: 'Fallo de máquina',
+    };
+
+    let matched: string | null = null;
+    for (const [key, canonical] of Object.entries(MOTIVOS_MAP)) {
+      if (rawMotivo.includes(key) || key.includes(rawMotivo)) {
+        matched = canonical;
+        break;
+      }
+    }
+
+    result.motivoDesmontaje = matched || rawVal;
   }
 
   return result;
@@ -536,7 +617,7 @@ function calculateConfidences(data: any): Record<string, number> {
   conf.operacion = (data.operacion || '').length > 3 ? 94 : 70;
   conf.numeroHerramienta = /^[Tt]-?\d{1,5}$/.test(data.numeroHerramienta) ? 97 : 72;
   conf.maquina = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'].includes(data.maquina) ? 99 : 68;
-  conf.husillo = ['1', '2', '3', '4'].includes(data.husillo) ? 98 : 70;
+  conf.husillo = (data.husillo || '').split(',').every((h: string) => ['1', '2', '3', '4'].includes(h.trim())) && (data.husillo || '').length > 0 ? 98 : 70;
   conf.tiempoVidaUtil = /^\d{1,7}$/.test(data.tiempoVidaUtil) ? 95 : 70;
   conf.fecha = (data.fecha || '').length >= 6 ? 96 : 70;
   conf.turno = ['1', '2', '3'].includes(data.turno) ? 98 : 75;
