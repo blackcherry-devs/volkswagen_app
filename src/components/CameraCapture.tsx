@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Camera, Upload, RefreshCw, Sparkles, AlertCircle, CheckCircle2, Smartphone, Video, X, Check } from 'lucide-react';
+import { Camera, Upload, RefreshCw, Sparkles, AlertCircle, CheckCircle2, Smartphone, Video, X, Check, Zap, ZapOff } from 'lucide-react';
 import { CardType } from '@/types/card';
 import { detectCardCorners, warpAndCropCard } from '@/lib/cornerDetection';
 
@@ -22,6 +22,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   const [streamActive, setStreamActive] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
+  const [isTorchOn, setIsTorchOn] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const nativeCameraInputRef = useRef<HTMLInputElement | null>(null);
   const guideRef = useRef<HTMLDivElement | null>(null);
@@ -100,12 +101,29 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    setIsTorchOn(false);
     setStreamActive(false);
     setIsAligned(false);
   };
 
   const toggleCameraFacing = () => {
+    setIsTorchOn(false);
     setCameraFacing((prev) => (prev === 'environment' ? 'user' : 'environment'));
+  };
+
+  // Activar o desactivar linterna/flash de la cámara del dispositivo
+  const toggleTorch = async () => {
+    try {
+      const track = streamRef.current?.getVideoTracks()[0];
+      if (!track) return;
+      const nextState = !isTorchOn;
+      await (track as any).applyConstraints({
+        advanced: [{ torch: nextState }],
+      });
+      setIsTorchOn(nextState);
+    } catch (err: any) {
+      console.warn('El dispositivo no soporta flash continuo (torch) o no está disponible en este navegador:', err);
+    }
   };
 
   useEffect(() => {
@@ -378,6 +396,25 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span className="text-[11px]">Voltear</span>
+              </button>
+
+              {/* Botón de Flash / Linterna */}
+              <button
+                type="button"
+                onClick={toggleTorch}
+                className={`flex items-center space-x-1.5 px-3 py-2 backdrop-blur-md text-xs font-semibold rounded-full border active:scale-95 transition shadow-2xl ${
+                  isTorchOn
+                    ? 'bg-amber-400 text-slate-950 border-amber-200 shadow-[0_0_15px_rgba(251,191,36,0.8)] font-bold'
+                    : 'bg-black/75 hover:bg-black/90 text-white border-white/20'
+                }`}
+                title={isTorchOn ? 'Apagar flash' : 'Encender flash'}
+              >
+                {isTorchOn ? (
+                  <Zap className="w-3.5 h-3.5 fill-current text-slate-950" />
+                ) : (
+                  <ZapOff className="w-3.5 h-3.5 text-slate-400" />
+                )}
+                <span className="text-[11px]">{isTorchOn ? 'Flash ON' : 'Flash'}</span>
               </button>
 
               <button
