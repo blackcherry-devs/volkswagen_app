@@ -56,7 +56,7 @@ export const ORANGE_CARD_TEMPLATE: CardTemplate = {
     },
     husillo: {
       id: 'husillo',
-      label: '5) Husillo (1-4)',
+      label: '5) Husillo',
       x: 0.6262,
       y: 0.5797,
       width: 0.2367,
@@ -173,7 +173,7 @@ export const GREEN_CARD_TEMPLATE: CardTemplate = {
     },
     husillo: {
       id: 'husillo',
-      label: '5) Husillo (1-4)',
+      label: '5) Husillo',
       x: 0.6292,
       y: 0.5800,
       width: 0.2317,

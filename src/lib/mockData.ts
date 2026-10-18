@@ -104,25 +104,24 @@ export function generateCardSvgString(
     ? getMotivoCodeByName((data as OrangeCardData).motivoDesmontaje)
     : null;
 
-  // Para el cartón naranja: Campo limpio de Motivo de Desmontaje con casilla N° (1 al 12)
+  // Para el cartón naranja: Campo limpio de Motivo de Desmontaje con casilla (1 al 12)
   const orangeMotivosSection = isOrange
     ? `
-    <!-- 5. Motivo de Desmontaje: Casilla N° para recibir el código 1 al 12 (Diseño limpio y espacioso) -->
-    <g transform="translate(70, 1245)">
-      <text x="0" y="24" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
+    <!-- 5. Motivo de Desmontaje: Casilla 44x48 px sin 'N', con (1 - 12) en negro y grande -->
+    <g transform="translate(70, 1280)">
+      <text x="0" y="28" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         Motivo de desmontaje:
       </text>
-      <text x="270" y="24" font-family="sans-serif" font-size="20" font-weight="900" fill="#000000">
-        N°
-      </text>
-      <!-- Casilla amplia para escribir el número del motivo -->
-      <rect x="310" y="-8" width="60" height="46" rx="6" fill="#ffffff" stroke="#000000" stroke-width="2.4"/>
-      ${
-        motivoCode
-          ? `<text x="340" y="27" font-family="cursive, 'Brush Script MT', sans-serif" font-size="32" font-weight="bold" fill="${inkColor}" text-anchor="middle">${motivoCode}</text>`
-          : ''
-      }
-      <text x="385" y="24" font-family="sans-serif" font-size="16" font-weight="bold" fill="#475569">
+      <!-- Casilla amplia para escribir el número del motivo (44x48 px, igual que C.C.) -->
+      <g transform="translate(290, -10)">
+        <rect x="0" y="0" width="44" height="48" rx="4" fill="#ffffff" stroke="#000000" stroke-width="2.2"/>
+        ${
+          motivoCode
+            ? `<text x="22" y="35" font-family="cursive, 'Brush Script MT', sans-serif" font-size="34" font-weight="bold" fill="${inkColor}" text-anchor="middle">${motivoCode}</text>`
+            : ''
+        }
+      </g>
+      <text x="350" y="28" font-family="sans-serif" font-size="22" font-weight="900" fill="#000000">
         (1 - 12)
       </text>
     </g>
@@ -242,7 +241,7 @@ export function generateCardSvgString(
     </g>
 
     <!-- 2. No. Herramienta (T + 5 números) -->
-    <g transform="translate(70, ${isOrange ? '980' : '990'})">
+    <g transform="translate(70, ${isOrange ? '960' : '970'})">
       <text x="0" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         No. de Herramienta:
       </text>
@@ -261,67 +260,67 @@ export function generateCardSvgString(
       }
     </g>
 
-    <!-- 3. Máquina (1 al 10) & Husillo (1 al 4, con soporte para 1 o más) -->
-    <g transform="translate(70, ${isOrange ? '1060' : '1100'})">
-      <text x="0" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
+    <!-- 3. Máquina (1 al 10) & Husillo (Separado holgadamente de Herramienta) -->
+    <g transform="translate(70, ${isOrange ? '1070' : '1090'})">
+      <text x="0" y="26" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         Máquina (1-10):
       </text>
-      <line x1="190" y1="26" x2="265" y2="26" stroke="#000000" stroke-width="1.8" stroke-opacity="0.8"/>
+      <line x1="185" y1="30" x2="255" y2="30" stroke="#000000" stroke-width="1.8" stroke-opacity="0.8"/>
       ${
         !blank && data?.maquina
           ? `
-      <text x="202" y="19" font-family="cursive, 'Brush Script MT', sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeHandwritten}" font-weight="bold" fill="${inkColor}">
+      <text x="195" y="23" font-family="cursive, 'Brush Script MT', sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeHandwritten}" font-weight="bold" fill="${inkColor}">
         ${data.maquina}
       </text>
       `
           : ''
       }
 
-      <text x="280" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
-        Husillo (1-4):
+      <text x="270" y="26" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
+        Husillo:
       </text>
-      <!-- Casillas ampliadas de Husillo 1, 2, 3, 4 con soporte para 1 o varios husillos marcados -->
-      <g transform="translate(440, -3)">
+      <!-- Casillas de Husillo 1, 2, 3, 4 ampliadas a 44x48 px (igual que Centro de Costos) -->
+      <g transform="translate(365, -12)">
         <!-- Husillo 1 -->
         <g transform="translate(0, 0)">
-          <rect x="0" y="0" width="30" height="30" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
-          ${!blank && data?.husillo && String(data.husillo).includes('1') ? '<line x1="4" y1="4" x2="26" y2="26" stroke="#000000" stroke-width="3.5"/><line x1="26" y1="4" x2="4" y2="26" stroke="#000000" stroke-width="3.5"/>' : ''}
-          <text x="36" y="23" font-size="20" font-family="sans-serif" font-weight="900" fill="#000000">1</text>
+          <rect x="0" y="0" width="44" height="48" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
+          ${!blank && data?.husillo && String(data.husillo).includes('1') ? '<line x1="6" y1="6" x2="38" y2="42" stroke="#000000" stroke-width="3.5"/><line x1="38" y1="6" x2="6" y2="42" stroke="#000000" stroke-width="3.5"/>' : ''}
+          <text x="50" y="32" font-size="22" font-family="sans-serif" font-weight="900" fill="#000000">1</text>
         </g>
 
         <!-- Husillo 2 -->
-        <g transform="translate(56, 0)">
-          <rect x="0" y="0" width="30" height="30" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
-          ${!blank && data?.husillo && String(data.husillo).includes('2') ? '<line x1="4" y1="4" x2="26" y2="26" stroke="#000000" stroke-width="3.5"/><line x1="26" y1="4" x2="4" y2="26" stroke="#000000" stroke-width="3.5"/>' : ''}
-          <text x="36" y="23" font-size="20" font-family="sans-serif" font-weight="900" fill="#000000">2</text>
+        <g transform="translate(74, 0)">
+          <rect x="0" y="0" width="44" height="48" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
+          ${!blank && data?.husillo && String(data.husillo).includes('2') ? '<line x1="6" y1="6" x2="38" y2="42" stroke="#000000" stroke-width="3.5"/><line x1="38" y1="6" x2="6" y2="42" stroke="#000000" stroke-width="3.5"/>' : ''}
+          <text x="50" y="32" font-size="22" font-family="sans-serif" font-weight="900" fill="#000000">2</text>
         </g>
 
         <!-- Husillo 3 -->
-        <g transform="translate(112, 0)">
-          <rect x="0" y="0" width="30" height="30" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
-          ${!blank && data?.husillo && String(data.husillo).includes('3') ? '<line x1="4" y1="4" x2="26" y2="26" stroke="#000000" stroke-width="3.5"/><line x1="26" y1="4" x2="4" y2="26" stroke="#000000" stroke-width="3.5"/>' : ''}
-          <text x="36" y="23" font-size="20" font-family="sans-serif" font-weight="900" fill="#000000">3</text>
+        <g transform="translate(148, 0)">
+          <rect x="0" y="0" width="44" height="48" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
+          ${!blank && data?.husillo && String(data.husillo).includes('3') ? '<line x1="6" y1="6" x2="38" y2="42" stroke="#000000" stroke-width="3.5"/><line x1="38" y1="6" x2="6" y2="42" stroke="#000000" stroke-width="3.5"/>' : ''}
+          <text x="50" y="32" font-size="22" font-family="sans-serif" font-weight="900" fill="#000000">3</text>
         </g>
 
         <!-- Husillo 4 -->
-        <g transform="translate(168, 0)">
-          <rect x="0" y="0" width="30" height="30" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
-          ${!blank && data?.husillo && String(data.husillo).includes('4') ? '<line x1="4" y1="4" x2="26" y2="26" stroke="#000000" stroke-width="3.5"/><line x1="26" y1="4" x2="4" y2="26" stroke="#000000" stroke-width="3.5"/>' : ''}
-          <text x="36" y="23" font-size="20" font-family="sans-serif" font-weight="900" fill="#000000">4</text>
+        <g transform="translate(222, 0)">
+          <rect x="0" y="0" width="44" height="48" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
+          ${!blank && data?.husillo && String(data.husillo).includes('4') ? '<line x1="6" y1="6" x2="38" y2="42" stroke="#000000" stroke-width="3.5"/><line x1="38" y1="6" x2="6" y2="42" stroke="#000000" stroke-width="3.5"/>' : ''}
+          <text x="50" y="32" font-size="22" font-family="sans-serif" font-weight="900" fill="#000000">4</text>
         </g>
       </g>
     </g>
 
-    <!-- 4. Tiempo de vida útil -->
-    <g transform="translate(70, ${isOrange ? '1140' : '1180'})">
-      <text x="0" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
+    <!-- 4. Tiempo de vida útil (Con separación amplia respecto a Máquina y Husillo) -->
+    <g transform="translate(70, ${isOrange ? '1190' : '1235'})">
+      <text x="0" y="24" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         ${isOrange ? 'Tiempo de vida útil logrado:' : 'Tiempo de vida útil:'}
       </text>
-      <line x1="${isOrange ? '355' : '265'}" y1="26" x2="660" y2="26" stroke="#000000" stroke-width="1.8" stroke-opacity="0.8"/>
+      <line x1="${isOrange ? '355' : '265'}" y1="28" x2="660" y2="28" stroke="#000000" stroke-width="1.8" stroke-opacity="0.8"/>
       ${
         !blank && data?.tiempoVidaUtil
           ? `
-      <text x="${isOrange ? '365' : '275'}" y="19" font-family="cursive, 'Brush Script MT', sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeHandwritten}" font-weight="bold" fill="${inkColor}">
+      <text x="${isOrange ? '365' : '275'}" y="21" font-family="cursive, 'Brush Script MT', sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeHandwritten}" font-weight="bold" fill="${inkColor}">
         ${data.tiempoVidaUtil} pzs
       </text>
       `
@@ -335,7 +334,7 @@ export function generateCardSvgString(
     ${
       isOrange
         ? `
-    <g transform="translate(68, 1330)">
+    <g transform="translate(68, 1375)">
       <text x="4" y="18" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeObservacionesTitle}" font-weight="900" fill="#000000">
         OBSERVACIONES / DETALLES DE FALLA:
       </text>
@@ -360,7 +359,7 @@ export function generateCardSvgString(
 
     <!-- 6. FILA DE CONTROL: FECHA, TURNO Y NOMBRE (Con espacio amplio y limpio) -->
     <!-- Fecha -->
-    <g transform="translate(70, ${isOrange ? '1545' : '1340'})">
+    <g transform="translate(70, ${isOrange ? '1575' : '1385'})">
       <text x="0" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         Fecha:
       </text>
@@ -376,37 +375,37 @@ export function generateCardSvgString(
       }
     </g>
 
-    <!-- Turno: Casillas ampliadas de 34x34 px con número exterior nítido (1°, 2°, 3°) -->
-    <g transform="translate(70, ${isOrange ? '1630' : '1465'})">
-      <text x="0" y="24" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
+    <!-- Turno: Casillas ampliadas a 44x48 px (igual que Centro de Costos) -->
+    <g transform="translate(70, ${isOrange ? '1655' : '1515'})">
+      <text x="0" y="30" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         Turno:
       </text>
-      <g transform="translate(95, -4)">
+      <g transform="translate(95, -10)">
         <!-- Turno 1 -->
         <g transform="translate(0, 0)">
-          <rect x="0" y="0" width="34" height="34" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
-          ${!blank && data?.turno === '1' ? '<line x1="4" y1="4" x2="30" y2="30" stroke="#000000" stroke-width="4"/><line x1="30" y1="4" x2="4" y2="30" stroke="#000000" stroke-width="4"/>' : ''}
-          <text x="42" y="25" font-size="22" font-family="sans-serif" font-weight="900" fill="#000000">1°</text>
+          <rect x="0" y="0" width="44" height="48" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
+          ${!blank && data?.turno === '1' ? '<line x1="6" y1="6" x2="38" y2="42" stroke="#000000" stroke-width="4"/><line x1="38" y1="6" x2="6" y2="42" stroke="#000000" stroke-width="4"/>' : ''}
+          <text x="52" y="32" font-size="22" font-family="sans-serif" font-weight="900" fill="#000000">1°</text>
         </g>
 
         <!-- Turno 2 -->
-        <g transform="translate(95, 0)">
-          <rect x="0" y="0" width="34" height="34" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
-          ${!blank && data?.turno === '2' ? '<line x1="4" y1="4" x2="30" y2="30" stroke="#000000" stroke-width="4"/><line x1="30" y1="4" x2="4" y2="30" stroke="#000000" stroke-width="4"/>' : ''}
-          <text x="42" y="25" font-size="22" font-family="sans-serif" font-weight="900" fill="#000000">2°</text>
+        <g transform="translate(100, 0)">
+          <rect x="0" y="0" width="44" height="48" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
+          ${!blank && data?.turno === '2' ? '<line x1="6" y1="6" x2="38" y2="42" stroke="#000000" stroke-width="4"/><line x1="38" y1="6" x2="6" y2="42" stroke="#000000" stroke-width="4"/>' : ''}
+          <text x="52" y="32" font-size="22" font-family="sans-serif" font-weight="900" fill="#000000">2°</text>
         </g>
 
         <!-- Turno 3 -->
-        <g transform="translate(190, 0)">
-          <rect x="0" y="0" width="34" height="34" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
-          ${!blank && data?.turno === '3' ? '<line x1="4" y1="4" x2="30" y2="30" stroke="#000000" stroke-width="4"/><line x1="30" y1="4" x2="4" y2="30" stroke="#000000" stroke-width="4"/>' : ''}
-          <text x="42" y="25" font-size="22" font-family="sans-serif" font-weight="900" fill="#000000">3°</text>
+        <g transform="translate(200, 0)">
+          <rect x="0" y="0" width="44" height="48" fill="#ffffff" stroke="#000000" stroke-width="2.2" rx="4"/>
+          ${!blank && data?.turno === '3' ? '<line x1="6" y1="6" x2="38" y2="42" stroke="#000000" stroke-width="4"/><line x1="38" y1="6" x2="6" y2="42" stroke="#000000" stroke-width="4"/>' : ''}
+          <text x="52" y="32" font-size="22" font-family="sans-serif" font-weight="900" fill="#000000">3°</text>
         </g>
       </g>
     </g>
 
     <!-- Nombre -->
-    <g transform="translate(70, ${isOrange ? '1715' : '1590'})">
+    <g transform="translate(70, ${isOrange ? '1735' : '1645'})">
       <text x="0" y="22" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeLabels}" font-weight="bold" fill="#000000">
         Nombre del Operador:
       </text>
