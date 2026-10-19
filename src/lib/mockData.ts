@@ -81,7 +81,6 @@ export const SAMPLE_UNIFIED_DATA: UnifiedRupturaData = {
 
 export interface CardSvgOptions {
   blank?: boolean;
-  showFiducials?: boolean;
 }
 
 // Generador de SVG vectorial que define la tarjeta física HSK 63 de Volkswagen de México
@@ -93,8 +92,6 @@ export function generateCardSvgString(
 ): string {
   const isOrange = type === 'naranja';
   const blank = !!options?.blank;
-  // Con Qwen2.5-VL los marcadores fiduciales ya no son necesarios en el cartón físico (por defecto false)
-  const showFiducials = options?.showFiducials === true;
   const bgColor = isOrange ? '#fa7542' : '#4ea87d';
   const strokeColor = isOrange ? '#c0392b' : '#236543';
   const inkColor = '#0f172a'; // Tinta bolígrafo oscuro industrial
@@ -162,32 +159,6 @@ export function generateCardSvgString(
       </text>
     </g>
 
-    <!-- Marcadores Fiduciales Opcionales (Desactivados por defecto porque Qwen lee todo directamente) -->
-    ${
-      showFiducials
-        ? `
-    <!-- Top Left -->
-    <rect x="25" y="700" width="34" height="34" fill="#000000"/>
-    <rect x="33" y="708" width="18" height="18" fill="#ffffff"/>
-    <rect x="38" y="713" width="8" height="8" fill="#000000"/>
-
-    <!-- Top Right -->
-    <rect x="741" y="700" width="34" height="34" fill="#000000"/>
-    <rect x="749" y="708" width="18" height="18" fill="#ffffff"/>
-    <rect x="754" y="713" width="8" height="8" fill="#000000"/>
-
-    <!-- Bottom Left -->
-    <rect x="25" y="1815" width="34" height="34" fill="#000000"/>
-    <rect x="33" y="1823" width="18" height="18" fill="#ffffff"/>
-    <rect x="38" y="1828" width="8" height="8" fill="#000000"/>
-
-    <!-- Bottom Right -->
-    <rect x="741" y="1815" width="34" height="34" fill="#000000"/>
-    <rect x="749" y="1823" width="18" height="18" fill="#ffffff"/>
-    <rect x="754" y="1828" width="8" height="8" fill="#000000"/>
-    `
-        : ''
-    }
 
     <!-- Encabezado Oficial Volkswagen (x=70 a x=400) -->
     <text x="70" y="744" font-family="sans-serif" font-size="${CARD_FONT_CONFIG.fontSizeHeaderHsk}" font-weight="900" letter-spacing="2" fill="#000000">
@@ -443,7 +414,7 @@ export async function simulateExtractionPipeline(
   onProgress?: (step: string) => void
 ): Promise<ExtractionResult> {
   const steps = [
-    'Detectando contorno de etiqueta HSK 63 y marcadores de esquina con OpenCV...',
+    'Detectando contorno de etiqueta HSK 63...',
     'Aislando región rectangular de datos bajo el hueco del cono...',
     'Aplicando corrección de perspectiva homográfica (warpPerspective)...',
     'Escaneando cuadrícula de las 12 casillas de Motivo de Desmontaje con OpenCV...',
